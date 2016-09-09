@@ -2,7 +2,7 @@
 
 A Tripal/Drupal module enabling functional annotation of user-uploaded data.
 
-Requirements:  
+##Requirements:  
 Tripal
 Java  
 Blast+  
@@ -11,7 +11,7 @@ Spyc [https://github.com/mustangostang/spyc]
 One or more Blast-formatted protein databases (e.g., swissprot)  
 A Yaml file for AHRD (further instructions are on the module config page)  
 
-Installation:
+##Installation:
 
 Copy the `tripal_annot` directory to the appropriate location in   
 your Drupal tree, e.g.: `/usr/local/www/drupal7/sites/all/modules/`
@@ -23,7 +23,7 @@ The module creates one database table `tripal_annot`
 
 Configure the module as directed on the config page  
 
-Operation:
+##Operation:
 
 The module uploads a user file (nucleotide or protein), blasts it against the  
 configured databases, and runs AHRD to parse the results.  
