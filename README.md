@@ -13,7 +13,7 @@ A Yaml file for AHRD (further instructions are on the module config page)
 
 Installation:
 
-Copy the tripal_annot directory to the appropriate location in   
+Copy the `tripal_annot` directory to the appropriate location in   
 your Drupal tree, e.g.: `/usr/local/www/drupal7/sites/all/modules/`
 
 Copy Spyc.php to the `includes` directory
