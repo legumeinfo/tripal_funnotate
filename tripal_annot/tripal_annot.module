@@ -1,0 +1,269 @@
+<?php
+require_once("includes/tripal_annot.config.inc");
+require_once("includes/tripal_annot.ahrd.inc");
+require_once("includes/tripal_annot.upload.inc");
+require_once("includes/tripal_annot.jobtrack.inc");
+require_once("includes/Spyc.php");
+
+#####################################################################################
+#
+# hook_menu: This sets up the handlers for all the pages that the module supports
+#
+#######################################################################################
+
+function tripal_annot_menu() 
+{
+	$items = array();
+
+	$items['annot'] = array(
+		'title' => 'ANNOTATION',
+		'type' => MENU_NORMAL_ITEM,
+		'access arguments' => array('access content'),
+		'page callback' => 'annot_main_page'
+	);
+
+	# After the user uploads a file, this page shows basic info about 
+	# the file and has the 'job start' button. 
+	# That way we can validate the file and present additional job options,
+	# if any. 
+  	$items['annot/upload/%'] = array(
+		'title' => 'Annotation Upload',
+		'page callback' => 'annot_upload_page',
+		'page arguments' => array(2), // The matched wildcard.
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK,
+  	);
+
+  	$items['annot/job/%'] = array(
+		'title' => 'Annotation Job',
+		'page callback' => 'annot_job_page',
+		'page arguments' => array(2), // The matched wildcard.
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK,
+  	);
+
+
+	$items['admin/tripal/extension/tripal_annot'] = array(
+		'title' => 'Annotation Module Configuration',
+		'description' => 'Performs functional annotation of user uploaded transcript data',
+		'page callback' => 'tripal_annot_description_page',
+		'access arguments' => array('administer site configuration'),
+		'type' => MENU_NORMAL_ITEM,
+	);
+
+	return $items;
+}
+
+
+#################################################################################
+#
+#	Upload page	+ handler
+#
+#################################################################################
+
+function annot_main_page()
+{
+	$text = "<h1>Transcript Annotation</h1>";
+
+
+	# First make sure the configuration is ok
+	$error = validate_config();
+	if ($error != "")
+	{
+		$text .= "Unable to run annotation at this time.<p>$error<p>";
+		return $text;
+	}
+
+	$form_state = array();
+	$text .= <<<END
+Upload a file of protein or nucleotide sequences and have them annotated against Swissprot plus three species databases (Soy, Medicago, Arabidopsis). 
+<p>
+The annotation uses BLAST for alignment, followed by semantic processing of the descriptors using 
+<a href="https://www.cropbio.uni-bonn.de/tools-and-databases-en/ahrd-en">AHRD</a>. 
+<br>
+GO assignments are also provided. 
+END;
+	$text .= drupal_render(drupal_get_form('annot_start_form')); 
+	$text .= "<hr>";
+	return $text;
+}
+function annot_file_element_process($element, &$form_state, $form) 
+{
+  $element = file_managed_file_process($element, $form_state, $form);
+  $element['upload_button']['#access'] = FALSE;
+  return $element;
+}
+function annot_start_form($form,&$form_state)
+{
+	$email = "will@agcol.arizona.edu";
+	#print "<p>Sending mail to $email<p>";
+	#drupal_mail("tripal_annot", "mymail", $email, language_default(), 
+#		$params = array('msg' => "FOO FOO"), "noreply@legumeinfo.org",  TRUE);
+
+	$maxupload = variable_get('annot_upload_sizeMB');
+
+    $form = array();
+
+    $form['#attributes']['enctype'] = 'multipart/form-data';
+    $form['UPLOAD'] = array(
+    	'#title' => 'Upload your protein or nucleotide FASTA file (max 2MB):  ',
+      	'#type' => 'managed_file',
+      	'#description' => t(''),
+      	'#upload_validators' => array(
+        'file_validate_extensions' => array('fasta fna fa fas seq txt'),
+      ),
+		'#progress_indicator' => 'bar',
+ 		'#process' => array('annot_file_element_process')
+	
+    );
+	#$form['email'] = array(
+	#	'#type' => 'textfield',
+	#	'#title' => 'Email (if you wish to be notified):',
+	#	'#size' => 25
+	#);
+
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Upload File',
+	  );
+
+	$form['jobnum'] = array(
+		'#type' => 'hidden',
+		'#value' => '',
+	  );
+	$form['jobkey'] = array(
+		'#type' => 'hidden',
+		'#value' => '',
+	  );
+
+      return $form;
+}
+function annot_start_form_validate($form, &$form_state)
+{
+  	$fid = $form_state['values']['UPLOAD'];
+	if ($fid == 0)
+	{
+		form_set_error('UPLOAD', t('Please choose a file to upload!'));
+	}
+}
+function annot_start_form_submit($form, &$form_state)
+{
+  	$fid = $form_state['values']['UPLOAD'];
+	drupal_goto("annot/upload/$fid" );
+}
+
+function tripal_annot_mail($key, &$message, $params) 
+{
+      $message['subject'] = "LIS Annotation Job";
+      $message['body'][] = $params['msg'];
+}
+
+function annot_update_schema()
+{
+	if (!db_field_exists("tripal_annot","joblist"))
+	{
+      	$spec = array(
+        'description' => t('List of running job numbers'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      );
+	db_add_field("tripal_annot","joblist",$spec);
+
+	}
+}
+function validate_config()
+{
+	$path = variable_get("annot_blast_path","");
+	if ($path == "")
+	{
+		return t("Blast path has not been configured");
+	}
+	$path .= '/blastp';
+	if(!file_exists($path) ) 
+	{
+		return t("Blast programs are missing (can't find $path)");
+	}
+
+	$path = variable_get("annot_java_path","");
+	if ($path == "")
+	{
+		return t("Java path has not been configured");
+	}
+	if(!file_exists($path) ) 
+	{
+		return t("Can't find java at $path");
+	}
+
+	$path = variable_get("annot_ahrd_path","");
+	if ($path == "")
+	{
+		return t("AHRD path has not been configured");
+	}
+	if(!file_exists($path) ) 
+	{
+		return t("Can't find AHRD at $path");
+	}
+	# Check the blast database files
+	$numdbs = 0;
+	for ($d = 1; $d <= 4; $d++)
+	{
+		$var = "annot_db$d";
+		$path = variable_get($var,"");
+		if ($path != "")
+		{
+			$numdbs++;
+		}	
+	}
+	if ($numdbs == 0)
+	{
+		return t("No blast databases have been configured");
+	}
+	for ($d = 1; $d <= 4; $d++)
+	{
+		$var = "annot_db$d";
+		$path = variable_get($var,"");
+		if ($path != "")
+		{
+			$exts = array("",".phr",".psq",".pin");
+			foreach ($exts as $ext)
+			{
+				$pathext = $path.$ext;
+				if(!file_exists($pathext) ) 
+				{
+					return t("Blast database missing: can't find $pathext");
+				}
+			}
+		}
+	}
+	return "";
+}
+function annot_add_managed_file($name)
+{
+	global $user;
+	$file = new stdClass;
+	$file->uid = $user->uid;
+	$file->filename = $name;
+	$file->uri = "public://tripal/annot/$name";
+	$file->status = 0;
+	$file->filemime = 'text/plain';
+	file_save($file);
+	return $file->fid;
+}
+#function annot_download($file)
+#{
+# 	if(file_exists("/tmp/$file")) 
+#	{
+#    	file_transfer($file->uri, array('Content-disposition', 'attachment; filename='.$file->filename));
+#  	}
+#  	else 
+#	{
+#    	return drupal_access_denied();
+#  	}
+#}
+function tripal_annot_init()
+{
+
+#   drupal_add_js (drupal_get_path('theme', 'tripal').'/js/tripal_annot.js');
+#   drupal_add_css(drupal_get_path('theme', 'tripal').'/css/tripal_annot.css');
+}
