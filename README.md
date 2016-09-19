@@ -3,7 +3,7 @@
 A Tripal/Drupal module enabling functional annotation of user-uploaded data.
 
 ##Requirements:  
-Tripal
+Tripal  
 Java  
 Blast+  
 AHRD [https://github.com/groupschoof/AHRD]  
