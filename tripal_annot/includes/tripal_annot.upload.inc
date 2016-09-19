@@ -1,23 +1,25 @@
 <?php
 
-# TODO:  timeout this page maybe one hour after upload so later users can't see the contents
 #####################################################################################
 #
 # Upload file page: Landing page after upload
 #					Shows sanity check info about the uploaded file 
 # 					User starts job from here	
+#					Append ?debug=1  to get extra debug information for upload parse problems
 #
 #######################################################################################
 
 function annot_upload_page($fid,$init='')
 {
 	global $ta_debug;
+	global $debug_text;
+	$debug_text = "";
 	$ta_debug = (isset($_GET["debug"]) ? 1 : 0);
 
 	$fobj = file_load($fid);
 	$upload_time = $fobj->timestamp;
 	$cur_time = time();
-	if (($cur_time - $upload_time) > 10*60) 
+	if (($cur_time - $upload_time) > 60*60) 
 	{
 		$text = <<<END
 This file upload has expired. Please upload your file again. 
@@ -36,35 +38,39 @@ END;
 	$numSeqs = 0;
 	$totalLen = 0;
 	$seqType = ""; # n or p
-	$numNT = 0;
-	$numAA = 0;
-	$numX = 0;
+	# every seq name will go into exactly one of the below arrays
+	$zeroLenSeqs = array();
+	$ambigSeqs = array();
+	$protSeqs = array();
+	$ntSeqs = array();
 	while (($line = fgets($fh)) !== false)
 	{
 		if (preg_match('/^>(\S+)/',$line,$matches))
 		{
 			if ($curName != "")
 			{
-				$curType = get_seq_type($curSeq);
-				if ($ta_debug)
-				{
-					print "$curName $curType<br>";
-				}
-				if ($curType == 'x')
-				{
-					$text .= "<br>Sequence $curName: unable to determine type (nucleotide or protein)";
-					$numX++;		
-				}
-				else if ($curType == "n")
-				{
-					$numNT++;
-				}
-				else if ($curType == "p")
-				{
-					$numAA++;
-				}
 				$numSeqs++;
-				$totalLen += strlen($curSeq);
+				if (strlen($curSeq) > 0)
+				{
+					$curType = get_seq_type($curSeq, $curName);
+					if ($curType == 'x')
+					{
+						array_push($ambigSeqs,$curName);
+					}
+					else if ($curType == "n")
+					{
+						array_push($ntSeqs,$curName);
+					}
+					else if ($curType == "p")
+					{
+						array_push($protSeqs,$curName);
+					}
+					$totalLen += strlen($curSeq);
+				}
+				else
+				{
+					array_push($zeroLenSeqs,$curName);		
+				}
 			}
 			$curName = $matches[1];
 			$curSeq = "";
@@ -76,31 +82,35 @@ END;
 	}
 	if ($curName != "")
 	{
-		$curType = get_seq_type($curSeq);
-		if ($ta_debug)
-		{
-			print "$curName $curType<br>";
-		}
-		if ($curType == 'x')
-		{
-			print "<br>Sequence $curName: unable to determine type (nucleotide or protein)";
-			$numX++;		
-		}
-		else if ($curType == "n")
-		{
-			$numNT++;
-		}
-		else if ($curType == "p")
-		{
-			$numAA++;
-		}
 		$numSeqs++;
-		$totalLen += strlen($curSeq);
+		if (strlen($curSeq) > 0)
+		{
+			$curType = get_seq_type($curSeq, $curName);
+			if ($curType == 'x')
+			{
+				array_push($ambigSeqs,$curName);
+			}
+			else if ($curType == "n")
+			{
+				array_push($ntSeqs,$curName);
+			}
+			else if ($curType == "p")
+			{
+				array_push($protSeqs,$curName);
+			}
+			$totalLen += strlen($curSeq);
+		}
+		else
+		{
+			array_push($zeroLenSeqs,$curName);		
+		}
 	}
 
 	fclose($fh);
 
-	if ($numAA == $numSeqs)
+	$numProt = count($protSeqs);
+	$numNT = count($ntSeqs);
+	if ($numProt == $numSeqs)
 	{
 		$seqType = "protein";
 	}
@@ -126,27 +136,62 @@ END;
 	}
 	else if ($seqType == "")
 	{
+		$numambig = count($ambigSeqs);
+		$numzero = count($zeroLenSeqs);
+		
+		if ($numzero > 0)
+		{
+			$text .= "<p>$numzero zero-length sequences were found.<p>";
+		}
+		if ($numambig > 0)
+		{
+			$text .= "<p>$numambig sequences could not be identified as nucleotide or protein.<p>";
+		}
+		if ($numProt >0 && $numNT > 0)
+		{
+			$text .= "<p>The file contains both nucleotide and protein sequences ($numProt protein, ";
+			$text .= "$numNT nucleotide).<p>";
+		}
 		$text .= <<<END
 <p>
+Please ensure that the file contains either all nucleotide or all protein sequences<br>
+and that no sequences are empty.
 <p>
-The sequence is not recognized as nucleotide or protein. 
-<p>
-Please make sure that the file is a plain-text file, i.e., not a Word
+Also the file should be a plain-text file, i.e., not a Word
 <br>
 document, rich-text file, or other file containing formatting characters. 
 <p>
-Also make sure that the file is in the FASTA format.
-<p>
-Note that the sequences must use only the standard IUPAC codes which are 
-<br>
-allowed by BLAST+.
+The file must be in the FASTA format,
+ using only the standard IUPAC codes.
 <br>
 The allowed codes are (upper/lowercase doesn't matter):
 <br>
-nucleotides:  agctnkmbvswdyrh-
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nucleotides:  agctnkmbvswdyrh-
 <br>
-protein: abcdefghiklmnpqrstuvwxyz*-
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;protein: abcdefghiklmnpqrstuvwxyz*-
 END;
+		if ($numzero > 0)
+		{
+			$text .= "<hr><br>Zero-length sequences:<br>";
+			$text .= implode("<br>",$zeroLenSeqs);
+		}
+		if ($numambig > 0)
+		{
+			$text .= "<hr><br>Ambiguous sequences:<br>";
+			$text .= implode("<br>",$ambigSeqs);
+		}
+		if ($numProt > 0 && $numNT > 0)
+		{
+			$text .= "<hr><br>Nucleotide sequences:<br>";
+			$text .= implode("<br>",$ntSeqs);
+			$text .= "<hr><br>Protein sequences:<br>";
+			$text .= implode("<br>",$protSeqs);
+		}
+		if ($ta_debug)
+		{
+			$text .= "<hr><p>";
+			$text .= $debug_text;
+		}
 		return $text;
 	}
 	else
@@ -165,19 +210,19 @@ END;
 	}
 	return $text;
 }
-function get_seq_type($seq)
+# Figure out protein or nucleotide by deleting the the iupac-allowed chars
+# and seeing if anything is left. 
+# If result is ambiguous, save it off for a debug message. 
+function get_seq_type($seq, $seqName)
 {
 	global $ta_debug;
+	global $debug_text;
 	$total = strlen($seq);
 	$ntrep = preg_replace('/[agctnkmbvswdyrhx\-]/','',$seq);
 	$ntreplen = strlen($ntrep);
 	if ($ntreplen == 0)
 	{
 		return 'n';
-	}
-	if ($ta_debug)
-	{
-		print "ntrep: $ntrep<br>";
 	}
 	$aarep = preg_replace('/[abcdefghiklmnpqrstuvwxyz*\-\.]/','',$seq);
 	$aareplen = strlen($aarep);
@@ -187,9 +232,10 @@ function get_seq_type($seq)
 	}
 	if ($ta_debug)
 	{
-		print "aarep: $aarep<br>";
+		$debug_text .= "$seqName: ntrep: $ntrep<br>";
+		$debug_text .= "$seqName: aarep: $aarep<br>";
 	}
-	return 'x'; # since virtually every char could be an AA
+	return 'x'; 
 }
 function annot_upload_form($form,&$form_state)
 {
