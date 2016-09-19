@@ -10,7 +10,7 @@ function annot_job_page($jobkey)
 {
 	$text = "";
 	$result = db_query("select * from tripal_annot where jobkey='$jobkey'");
-	if (!$result)
+	if ($result->rowCount() == 0)
 	{
 		$text = "<p>Job <tt>$jobkey</tt> was not found.<p>";
 		return $text;
