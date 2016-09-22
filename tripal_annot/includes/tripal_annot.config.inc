@@ -102,6 +102,16 @@ function annot_config_form($form_state)
     '#title' => t('Path to YAML file for AHRD'),
     '#default_value' => variable_get('annot_yml', ''),
   );
+  $form['annot_iprdir']= array(
+    '#type' => 'textfield',
+    '#title' => t('Path to InterProScan directory'),
+    '#default_value' => variable_get('annot_iprdir', ''),
+  );
+  $form['annot_iprparam']= array(
+    '#type' => 'textfield',
+    '#title' => t('InterProScan parameters (optional)'),
+    '#default_value' => variable_get('annot_iprparam', ''),
+  );
 
 $form['submit'] = array(
     '#type' => 'submit',
@@ -115,9 +125,9 @@ function annot_config_form_validate($form, &$form_state)
 {
 	$valid = 1;
 	$path = $form_state['values']['annot_blast_path'];
-	$path .= '/blastp';
 	if(!empty($path)) 
 	{
+		$path .= '/blastp';
 		if(file_exists($path) ) 
 		{
 			variable_set('annot_blast_path', $form_state['values']['annot_blast_path']);
@@ -127,6 +137,11 @@ function annot_config_form_validate($form, &$form_state)
 			$valid = 0;
 			form_set_error('annot_blast_path', t('Did not locate blast programs at this path! Please enter a valid path'));
 		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_blast_path', t('Please enter a valid path for Blast+'));
 	}
 	$path = $form_state['values']['annot_java_path'];
 	if(!empty($path)) 
@@ -154,6 +169,11 @@ function annot_config_form_validate($form, &$form_state)
 			form_set_error('annot_java_path', t('Did not locate java at this path! Please enter a valid path'));
 		}
 	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_java_path', t('Please enter a valid path for Java'));
+	}
 	$path = $form_state['values']['annot_ahrd_path'];
 	if(!empty($path)) 
 	{
@@ -179,6 +199,11 @@ function annot_config_form_validate($form, &$form_state)
 			$valid = 0;
 			form_set_error('annot_ahrd_path', t('Did not locate ahrd.jar at this path! Please enter a valid path'));
 		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_ahrd_path', t('Please enter a valid path for AHRD'));
 	}
 	# Check the blast database files
 	$numset = 0;
@@ -297,6 +322,31 @@ function annot_config_form_validate($form, &$form_state)
 		
 	}
 	variable_set("annot_yml",$path);
+
+	$path = $form_state['values']['annot_iprdir'];
+	if(!empty($path)) 
+	{
+		$path .= '/interproscan.sh';
+		if(file_exists($path) ) 
+		{
+			variable_set('annot_iprdir', $form_state['values']['annot_iprdir']);
+		}
+		else 
+		{
+			$valid = 0;
+			form_set_error('annot_iprdir', t('Did not locate interproscan.sh at this path! Please enter a valid path'));
+		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_iprdir', t('Please enter a valid path for InterProScan'));
+	}
+	$params = $form_state['values']['annot_iprparam'];
+	if(!empty($params)) 
+	{
+		variable_set('annot_iprparam', $form_state['values']['annot_iprparam']);
+	}
 
 	$maxsize = $form_state['values']['annot_upload_sizeMB'];
 	$sysmax = (file_upload_max_size()/1024)/1024;
