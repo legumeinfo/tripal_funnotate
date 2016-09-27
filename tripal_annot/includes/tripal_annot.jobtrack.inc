@@ -21,6 +21,7 @@ function annot_job_page($jobkey)
 	$email = $jarr["email"];
 	$fid = $jarr["ulfid"];
 	$outfid = $jarr["outfid"];
+	$iprfid = $jarr["iprfid"];
 	$blastfid = $jarr["blastfid"];
 	$nseqs = $jarr["ulseqs"];
 	$totlen = $jarr["ulbases"];
@@ -28,6 +29,12 @@ function annot_job_page($jobkey)
 	$basetype = ($jarr["ultype"] == "n" ? "basepairs" : "proteins");
 
 	$joblist = explode(",",$jarr["joblist"]);
+	$ipr_jobid = array_pop($joblist);
+	if (!is_numeric($ipr_jobid))
+	{
+		$text = "Unable to determine InterPro job!<p>Error occurred.<p>";
+		return $text;
+	}
 	$ahrd_jobid = array_pop($joblist);
 	if (!is_numeric($ahrd_jobid))
 	{
@@ -45,8 +52,10 @@ END;
 
 	if ($error != "")
 	{
+		$earray = explode(";",$error);
+		$errstr = implode("<p>",$earray);
 		$text .= <<< END
-<p><span style="color:red"><b>$error</b></span><p>
+<hr><span style="color:red"><b>Error:</b></span><br>$errstr<hr>
 END;
 	}
 
@@ -107,6 +116,30 @@ END;
 			$status .= "AHRD done\n";
 		}
 	}
+	$result = db_query("select * from tripal_jobs where job_id=$ipr_jobid"); 
+	if (!$result)
+	{
+		$text .= "<p>Job <tt>$ipr_jobid</tt> (InterPro) was not found!<p>An error occurred.";
+		return $text;
+	}
+	$r = $result->fetchObject();			
+	if (NULL == $r->start_time)
+	{
+		$status .= "InterPro queued\n";
+		$numleft++;
+	}
+	else
+	{
+		if (NULL == $r->end_time)
+		{
+			$status .= "InterPro running\n";
+			$numleft++;
+		}
+		else
+		{
+			$status .= "InterPro done\n";
+		}
+	}
 
 	#
 	# Jobs are still running so just show the status of the jobs
@@ -142,6 +175,9 @@ END;
 	$fobj2 = file_load($blastfid); #  the blast gzip
 	$outurl2 = file_create_url($fobj2->uri);
 
+	$fobj3 = file_load($iprfid); #  interpro output
+	$outurl3 = file_create_url($fobj3->uri);
+
 	$stats = array();
 	$err = annot_calc_stats($stats, $jarr, $fobj);
 	if ($err != "")
@@ -168,6 +204,8 @@ END;
  (right-click to download)
 <br>
 <a href="$outurl2" style="text-decoration:underline">BLAST output files</a> (tar/gzip archive)
+<br>
+<a href="$outurl3" style="text-decoration:underline">InterPro output</a> (txt file, RAW format)
 <p>
 Or view the output here:<br>
 <table>

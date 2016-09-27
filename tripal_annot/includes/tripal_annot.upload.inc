@@ -331,6 +331,7 @@ function annot_upload_form_submit($form, &$form_state)
 		'email' => $email,
 	))->execute();
 
+
 	# Now start the blast jobs (up to 4)
 	$joblist = array(); # list of entries "jobid:dbnumber" to be stored in DB for use by tracking page
 	$dblist = array(); # db numbers used, needed by the ahrd job
@@ -361,6 +362,37 @@ function annot_upload_form_submit($form, &$form_state)
 	  "annot $jid AHRD",
 	  "tripal_annot",
 	  "run_tripal_annot_ahrd",
+	  $job_args,
+	  $user->uid
+	);
+	array_push($joblist,$job_id);
+
+	# Now start the interpro job
+	$iprdir = variable_get("annot_iprdir","");
+	if (!file_exists("$iprdir/interproscan.sh"))
+	{
+		drupal_set_message("Can't find interproscan.sh in $iprdir!");
+		return 0;
+	}
+	$iprpath = "$iprdir/interproscan.sh";
+
+	$tparam = ($type == "n" ? " -t n " : "");
+	$iprparam = variable_get("annot_iprparam");
+	
+	$outname = "ipr_$jid.xml";
+	$outpath = DRUPAL_ROOT."/".tripal_get_files_dir("annot")."/$outname";
+	$params = "$tparam -i $fpath -o $outpath -f XML $iprparam ";
+	$cmd = "$iprpath $params";
+
+	$job_args = array(
+		"cmd" => $cmd,
+		"out" => $outpath,
+		"jid" => $jid);
+
+	$job_id = tripal_add_job(
+	  "annot $jid IPR",
+	  "tripal_annot",
+	  "run_tripal_annot_ipr",
 	  $job_args,
 	  $user->uid
 	);
@@ -468,7 +500,7 @@ function tripal_annot_append_job_error($jid,$newstatus)
 	$result = db_query("select status from tripal_annot where jid=$jid");
 	$r = $result->fetchAssoc();
 	$status = $r["status"];
-	$status .= "<p>$newstatus";
+	$status .= "$newstatus;";
 	tripal_annot_update_field($jid,"status",$status);
 	
 }

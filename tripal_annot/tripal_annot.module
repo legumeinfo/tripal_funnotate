@@ -238,6 +238,8 @@ function validate_config()
 	}
 	return "";
 }
+# Add a file to the managed_file system. 
+# File must be in the public files area, e.g. /sites/default/files/tripal/annot
 function annot_add_managed_file($name)
 {
 	global $user;

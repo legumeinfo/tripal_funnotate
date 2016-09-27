@@ -107,6 +107,11 @@ function annot_config_form($form_state)
     '#title' => t('Path to InterProScan directory'),
     '#default_value' => variable_get('annot_iprdir', ''),
   );
+  $form['annot_iprcfgdir']= array(
+    '#type' => 'textfield',
+    '#title' => t('Directory for the InterProScan properties file'),
+    '#default_value' => variable_get('annot_iprcfgdir', ''),
+  );
   $form['annot_iprparam']= array(
     '#type' => 'textfield',
     '#title' => t('InterProScan parameters (optional)'),
@@ -341,6 +346,36 @@ function annot_config_form_validate($form, &$form_state)
 	{
 		$valid = 0;
 		form_set_error('annot_iprdir', t('Please enter a valid path for InterProScan'));
+	}
+
+	$path = $form_state['values']['annot_iprcfgdir'];
+	if(!empty($path)) 
+	{
+		if(is_dir($path) ) 
+		{
+			system("touch $path/tripalannottest");
+			if (file_exists("$path/tripalannottest"))
+			{
+				system("rm $path/tripalannottest");
+				variable_set('annot_iprcfgdir', $form_state['values']['annot_iprcfgdir']);
+			}
+			else
+			{
+				$valid = 0;
+				form_set_error('annot_iprcfgdir', t('Could not write to directory '.$path.' Please enter a writeable properties directory'));
+
+			}
+		}
+		else 
+		{
+			$valid = 0;
+			form_set_error('annot_iprcfgdir', t('Could not find directory '.$path.' Please enter a valid properties directory'));
+		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_iprcfgdir', t('Please enter a valid properties directory'));
 	}
 	$params = $form_state['values']['annot_iprparam'];
 	if(!empty($params)) 

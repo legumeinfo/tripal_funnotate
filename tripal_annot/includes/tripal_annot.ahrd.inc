@@ -3,7 +3,8 @@
 ##################################################################################
 #
 #	Run AHRD on the accumulated blast output files
-#	and do other postprocessing (if any) to finish the job
+#	and do other postprocessing (if any) to finish the job.
+#	This file also has the InterPro handler.
 #
 ##################################################################################
 
@@ -124,4 +125,148 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 	tripal_annot_update_field($jid,"blastfid",$fid);
 }
 
+
+#
+#	Callback function for running InterPro
+#
+function run_tripal_annot_ipr($cmd, $outpath, $jid)
+{
+	$propsdir = variable_get("annot_iprcfgdir");
+	file_put_contents("/tmp/cmd1.txt",$cmd);
+	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" );
+	if (!file_exists($outpath))
+	{
+		tripal_append_job_error("jid","Failed to create InterPro result $outpath");
+		return;
+	}
+
+	$rawname = "ipr_$jid.txt";
+	$rawpath = DRUPAL_ROOT."/".tripal_get_files_dir("annot")."/$rawname";
+	$iprdir = variable_get("annot_iprdir","");
+	if (!file_exists("$iprdir/interproscan.sh"))
+	{
+		tripal_append_job_error("jid","Can't find interproscan.sh in $iprdir");
+		return;
+	}
+	$iprpath = "$iprdir/interproscan.sh";
+	$cmd = "$iprpath -i $outpath -mode convert -f RAW -o $rawpath";
+	file_put_contents("/tmp/cmd.txt",$cmd);
+	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr2.txt 2>& 1" );
+	if (!file_exists($rawpath))
+	{
+		tripal_append_job_error("jid","Failed to convert InterPro xml to raw");
+		return;
+	}
+
+	$fid = annot_add_managed_file($rawname);
+	tripal_annot_update_field($jid,"iprfid",$fid);
+
+	# Scan the IPR output and get IDs and GOs from the best hits	
+
+	$txt = "";
+	
+	$fh = fopen($rawpath,"r");
+	$bestiprs = array();
+	$bestgos = array();
+	$bestevals = array();
+	while ( ($line = fgets($fh)) != FALSE)
+	{
+		$fields = preg_split("/\t/",$line);
+		$query = $fields[0];
+		$eval = $fields[8];
+		if (is_numeric($eval))
+		{
+			$iprid = $fields[11];
+			if ($iprid == "NULL")
+			{
+				$iprid = "";
+			}
+			$goline = $fields[13];
+			if (!isset($bestevals[$query]) || $eval < $bestevals[$query])
+			{
+$txt .= "$query\t$eval (BEST) $goline\n";
+				$bestevals[$query] = $eval;
+				$bestiprs[$query] = $iprid;
+				$matches = array();
+				$nummatch = preg_match_all("|GO:(\d+)|",$goline,$matches);
+$txt .= "matches:$nummatch\n";
+$txt .= print_r($matches,true);
+				$gostr = ($nummatch > 0 ? implode(";",$matches[1]) : "");	
+				$bestgos[$query] = $gostr;
+$txt .= "$iprid\t$gostr\n";
+			}
+			else
+			{
+$txt .= "$query\t$eval \n";
+
+			}
+		}
+	}
+	fclose($fh);
+file_put_contents("/tmp/iprparse.txt",$txt);
+
+	# Now integrate the IPR IDs and GOs into the AHRD output
+	$result = db_query("select outfid from tripal_annot where jid=$jid");
+	if ($result->rowCount() == 0)
+	{
+		tripal_append_job_error("jid","InterPro: could not find database entry for job $jid");
+		return;
+	}
+
+	$jarr = $result->fetchAssoc();
+	$ahrd_fid = $jarr["outfid"];
+	$ahrd_fobj = file_load($ahrd_fid);
+	$ahrd_path = drupal_realpath($ahrd_fobj->uri);
+
+	$fh1 = fopen($ahrd_path,"r");
+	$fh2 = fopen("/tmp/ahrd_fix.txt","w");
+
+	$got_header == 0;
+system("rm /tmp/txtmatch.txt");
+	while ( ($line = fgets($fh1)) != FALSE)
+	{
+		if ($got_header < 3)
+		{
+			fwrite($fh2,$line);
+			$got_header++;
+			continue;
+		}
+file_put_contents("/tmp/txtmatch.txt",$line,FILE_APPEND);
+		$fields = preg_split("/\t/",$line);
+		$query = $fields[0];
+		$ipr_query = find_matching_query($query,$bestiprs); # ipr extracts uniprot shortnames :-(
+		if ($ipr_query != "")
+		{
+			$newline = trim($line)."\t".$bestiprs{$ipr_query}."\t".$bestgos{$ipr_query}."\n";
+			fwrite($fh2,$newline);
+		}
+	}
+	fclose($fh1);
+	fclose($fh2);
+}
+# Unfortunately some tools convert uniprot fasta headers like sp|Q197F8|002R_IIV3
+# to shortened names like Q197F8 .
+# Interpro does this, hence we have to do a special check to match the AHRD query names, 
+# which maintain the full query name. 
+function find_matching_query($longname,&$shortname_array)
+{
+$txt = "";
+$txt .= "try to match $longname\n";
+	if (isset($shortname_array[$longname]))
+	{
+		return $longname;
+	}
+	foreach ($shortname_array as $shortname => $foo)
+	{
+$txt .= "try to match $shortname in $longname\n";
+		if (FALSE != strstr($longname,"|$shortname|")) # not perfect match but should be good enough
+		{
+$txt .= "matched $longname!\n";
+			return $longname;
+		}
+	}
+$txt .= "no match!\n";
+file_put_contents("/tmp/txtmatch.txt",$txt,FILE_APPEND);
+	return "";
+}
 

@@ -58,6 +58,12 @@ function tripal_annot_schema()
         'length' => 255,
 		'default' => '',
       ),
+      'iprfid' => array(
+        'description' => t('InterPro output file'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
       'outfid' => array(
         'description' => t('Final output file ID'),
         'type' => 'int',
