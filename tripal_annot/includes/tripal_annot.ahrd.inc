@@ -184,7 +184,7 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 			$goline = $fields[13];
 			if (!isset($bestevals[$query]) || $eval < $bestevals[$query])
 			{
-$txt .= "$query\t$eval (BEST) $goline\n";
+$txt .= "\n\n$query\t$eval (BEST) $goline\n";
 				$bestevals[$query] = $eval;
 				$bestiprs[$query] = $iprid;
 				$matches = array();
@@ -193,12 +193,7 @@ $txt .= "matches:$nummatch\n";
 $txt .= print_r($matches,true);
 				$gostr = ($nummatch > 0 ? implode(";",$matches[1]) : "");	
 				$bestgos[$query] = $gostr;
-$txt .= "$iprid\t$gostr\n";
-			}
-			else
-			{
-$txt .= "$query\t$eval \n";
-
+$txt .= "$iprid\tGOS:$gostr\n";
 			}
 		}
 	}
@@ -231,38 +226,53 @@ system("rm /tmp/txtmatch.txt");
 			$got_header++;
 			continue;
 		}
-file_put_contents("/tmp/txtmatch.txt",$line,FILE_APPEND);
+file_put_contents("/tmp/txtmatch.txt","AHRD:$line"."\n",FILE_APPEND);
 		$fields = preg_split("/\t/",$line);
 		$query = $fields[0];
-		$ipr_query = find_matching_query($query,$bestiprs); # ipr extracts uniprot shortnames :-(
+		$ipr_query = find_matching_query($query,$bestiprs); 
+		$newline = trim($line);
 		if ($ipr_query != "")
 		{
-			$newline = trim($line)."\t".$bestiprs{$ipr_query}."\t".$bestgos{$ipr_query}."\n";
-			fwrite($fh2,$newline);
+			$newline .= "\t".$bestiprs[$ipr_query]."\t".$bestgos[$ipr_query];
 		}
+		else
+		{
+			$newline .= "\t\t";
+		}
+		fwrite($fh2,"$newline\n");
 	}
 	fclose($fh1);
 	fclose($fh2);
+
+	system("cp $ahrd_path /tmp/ahrd_orig.txt");
+	system("cp /tmp/ahrd_fix.txt $ahrd_path");
 }
+#
 # Unfortunately some tools convert uniprot fasta headers like sp|Q197F8|002R_IIV3
 # to shortened names like Q197F8 .
 # Interpro does this, hence we have to do a special check to match the AHRD query names, 
 # which maintain the full query name. 
+# $longname : from AHRD output
+# $shortname : in InterPro output
+#
 function find_matching_query($longname,&$shortname_array)
 {
 $txt = "";
 $txt .= "try to match $longname\n";
 	if (isset($shortname_array[$longname]))
 	{
-		return $longname;
+$txt .= "matched $longname!\n";
+file_put_contents("/tmp/txtmatch.txt",$txt,FILE_APPEND);
+		return $shortname;
 	}
 	foreach ($shortname_array as $shortname => $foo)
 	{
 $txt .= "try to match $shortname in $longname\n";
 		if (FALSE != strstr($longname,"|$shortname|")) # not perfect match but should be good enough
 		{
-$txt .= "matched $longname!\n";
-			return $longname;
+$txt .= "matched $shortname to $longname!\n";
+file_put_contents("/tmp/txtmatch.txt",$txt,FILE_APPEND);
+			return $shortname;
 		}
 	}
 $txt .= "no match!\n";
