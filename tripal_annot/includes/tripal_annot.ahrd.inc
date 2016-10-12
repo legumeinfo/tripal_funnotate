@@ -131,6 +131,16 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 #
 function run_tripal_annot_ipr($cmd, $outpath, $jid)
 {
+	# We need to know if it's a nucleotide seq since IPR appends to the name
+	$res = db_query("select ultype from tripal_annot where jid=$jid");
+	if (!$res)
+	{
+		tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
+		return;
+	}	
+	$r = $res->fetchObject();			
+	$seqtype = $r->ultype;	
+
 	$propsdir = variable_get("annot_iprcfgdir");
 	file_put_contents("/tmp/cmd1.txt",$cmd);
 	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" );
@@ -173,6 +183,11 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 	{
 		$fields = preg_split("/\t/",$line);
 		$query = $fields[0];
+		if ($seqtype == "n")
+		{
+			# IPR adds _NN to indicate the ORF number; must remove
+			$query = preg_replace('/_\d+$/','',$query);
+		}
 		$eval = $fields[8];
 		if (is_numeric($eval))
 		{
@@ -184,7 +199,7 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 			$goline = $fields[13];
 			if (!isset($bestevals[$query]) || $eval < $bestevals[$query])
 			{
-$txt .= "\n\n$query\t$eval (BEST) $goline\n";
+$txt .= "\n\n$query\t$eval $goline\n";
 				$bestevals[$query] = $eval;
 				$bestiprs[$query] = $iprid;
 				$matches = array();
@@ -198,6 +213,8 @@ $txt .= "$iprid\tGOS:$gostr\n";
 		}
 	}
 	fclose($fh);
+$txt .= "\n****************************************\nIPRID\n".print_r($bestiprs,TRUE);
+$txt .= "\n****************************************\nGOS\n".print_r($bestgos,TRUE);
 file_put_contents("/tmp/iprparse.txt",$txt);
 
 	# Now integrate the IPR IDs and GOs into the AHRD output
@@ -228,7 +245,7 @@ system("rm /tmp/txtmatch.txt");
 		}
 file_put_contents("/tmp/txtmatch.txt","AHRD:$line"."\n",FILE_APPEND);
 		$fields = preg_split("/\t/",$line);
-		$query = $fields[0];
+		$query = trim($fields[0]);
 		$ipr_query = find_matching_query($query,$bestiprs); 
 		$newline = trim($line);
 		if ($ipr_query != "")
@@ -263,7 +280,7 @@ $txt .= "try to match $longname\n";
 	{
 $txt .= "matched $longname!\n";
 file_put_contents("/tmp/txtmatch.txt",$txt,FILE_APPEND);
-		return $shortname;
+		return $longname;
 	}
 	foreach ($shortname_array as $shortname => $foo)
 	{
