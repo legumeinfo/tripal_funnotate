@@ -3,7 +3,9 @@
 #####################################################################################
 #
 # Upload file page: Landing page after upload
-#					Shows sanity check info about the uploaded file 
+#					File is cleaned (bad chars replaced by N) 
+#					The cleaned file is stored but does not replace the original
+#					(This page can be revisited and additional jobs started on the same upload)
 # 					User starts job from here	
 #					Append ?debug=1  to get extra debug information for upload parse problems
 #
@@ -15,7 +17,11 @@ function annot_upload_page($fid,$init='')
 	global $debug_text;
 	$debug_text = "";
 	$ta_debug = (isset($_GET["debug"]) ? 1 : 0);
-
+	$seqType = $_GET["seqtype"];
+	if ($seqType != "n" && $seqType != "p")
+	{
+		return "Sequence type was not provided!<p>";
+	}
 	$fobj = file_load($fid);
 	$upload_time = $fobj->timestamp;
 	$cur_time = time();
@@ -31,18 +37,24 @@ END;
 	$fsize = $fobj->filesize;
 	$text = "Uploaded file: $fname ($fsize bytes)<p>";
 	system("chmod 755 $fpath");
-
 	$fh = fopen($fpath,"r");
+
+	# Clean the file of unusable chars and also make sure the seqs are all nonempty
+	# The cleaned file is not used for anything until the user clicks to start the analysis
+
+	$tmppath = "$fpath.cleaned";
+	$fhtemp = fopen($tmppath,"w");
+
 	$curName = "";
+	$curHeader = "";
 	$curSeq = "";
 	$numSeqs = 0;
 	$totalLen = 0;
-	$seqType = ""; # n or p
-	# every seq name will go into exactly one of the below arrays
 	$zeroLenSeqs = array();
-	$ambigSeqs = array();
-	$protSeqs = array();
-	$ntSeqs = array();
+	$totalBadChars = 0;
+	$badCharsBySeq = array();
+	$wrongTypeSeqs = array();  # seqs that look like nt although prot was specified, or vice versa
+
 	while (($line = fgets($fh)) !== false)
 	{
 		if (preg_match('/^>(\S+)/',$line,$matches))
@@ -52,20 +64,13 @@ END;
 				$numSeqs++;
 				if (strlen($curSeq) > 0)
 				{
-					$curType = get_seq_type($curSeq, $curName);
-					if ($curType == 'x')
-					{
-						array_push($ambigSeqs,$curName);
-					}
-					else if ($curType == "n")
-					{
-						array_push($ntSeqs,$curName);
-					}
-					else if ($curType == "p")
-					{
-						array_push($protSeqs,$curName);
-					}
 					$totalLen += strlen($curSeq);
+					$numBadChars = 0;
+					check_seq_type($curSeq,$curName,$seqType,$wrongTypeSeqs);
+					$cleanedSeq = clean_sequence($curSeq,$seqType,$numBadChars);
+					$totalBadChars += $numBadChars;
+					$badCharsBySeq[$curName] = $numBadChars;
+					write_cleaned_sequence($fhtemp,$curHeader,$cleanedSeq);
 				}
 				else
 				{
@@ -73,6 +78,7 @@ END;
 				}
 			}
 			$curName = $matches[1];
+			$curHeader = $line;
 			$curSeq = "";
 		}
 		else
@@ -85,20 +91,13 @@ END;
 		$numSeqs++;
 		if (strlen($curSeq) > 0)
 		{
-			$curType = get_seq_type($curSeq, $curName);
-			if ($curType == 'x')
-			{
-				array_push($ambigSeqs,$curName);
-			}
-			else if ($curType == "n")
-			{
-				array_push($ntSeqs,$curName);
-			}
-			else if ($curType == "p")
-			{
-				array_push($protSeqs,$curName);
-			}
 			$totalLen += strlen($curSeq);
+			$numBadChars = 0;
+			check_seq_type($curSeq,$curName,$seqType,$wrongTypeSeqs);
+			$cleanedSeq = clean_sequence($curSeq,$seqType,$numBadChars);
+			$totalBadChars += $numBadChars;
+			$badCharsBySeq[$curName] = $numBadChars;
+			write_cleaned_sequence($fhtemp,$curHeader,$cleanedSeq);
 		}
 		else
 		{
@@ -107,18 +106,9 @@ END;
 	}
 
 	fclose($fh);
+	fclose($fhtemp);
 
-	$numProt = count($protSeqs);
-	$numNT = count($ntSeqs);
-	if ($numProt == $numSeqs)
-	{
-		$seqType = "protein";
-	}
-	else if ($numNT == $numSeqs)
-	{
-		$seqType = "nucleotide";
-	}
-	
+
 	if ($numSeqs == 0 || $totalLen == 0)
 	{
 		$text .= <<<END
@@ -134,72 +124,50 @@ Also make sure that the file is in the FASTA format.
 END;
 		return $text;
 	}
-	else if ($seqType == "")
+	else if (count($zeroLenSeqs) > 0 )
 	{
-		$numambig = count($ambigSeqs);
-		$numzero = count($zeroLenSeqs);
-		
-		if ($numzero > 0)
-		{
-			$text .= "<p>$numzero zero-length sequences were found.<p>";
-		}
-		if ($numambig > 0)
-		{
-			$text .= "<p>$numambig sequences could not be identified as nucleotide or protein.<p>";
-		}
-		if ($numProt >0 && $numNT > 0)
-		{
-			$text .= "<p>The file contains both nucleotide and protein sequences ($numProt protein, ";
-			$text .= "$numNT nucleotide).<p>";
-		}
-		$text .= <<<END
-<p>
-Please ensure that the file contains either all nucleotide or all protein sequences<br>
-and that no sequences are empty.
-<p>
-Also the file should be a plain-text file, i.e., not a Word
-<br>
-document, rich-text file, or other file containing formatting characters. 
-<p>
-The file must be in the FASTA format,
- using only the standard IUPAC codes.
-<br>
-The allowed codes are (upper/lowercase doesn't matter):
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nucleotides:  agctnkmbvswdyrh-
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;protein: abcdefghiklmnpqrstuvwxyz*-
-END;
-		if ($numzero > 0)
-		{
-			$text .= "<hr><br>Zero-length sequences:<br>";
-			$text .= implode("<br>",$zeroLenSeqs);
-		}
-		if ($numambig > 0)
-		{
-			$text .= "<hr><br>Ambiguous sequences:<br>";
-			$text .= implode("<br>",$ambigSeqs);
-		}
-		if ($numProt > 0 && $numNT > 0)
-		{
-			$text .= "<hr><br>Nucleotide sequences:<br>";
-			$text .= implode("<br>",$ntSeqs);
-			$text .= "<hr><br>Protein sequences:<br>";
-			$text .= implode("<br>",$protSeqs);
-		}
-		if ($ta_debug)
-		{
-			$text .= "<hr><p>";
-			$text .= $debug_text;
-		}
+		$text .= "<hr><br>The file cannot be used because it contains the following empty sequences:<br>";
+		$text .= implode("<br>",$zeroLenSeqs);
 		return $text;
 	}
 	else
 	{
+		$st = ($seqType == "n" ? "nucleotide" : "protein");
+		$nsymbol = ($seqType == "n" ? "n" : "x");
+		$goodchars = ($seqType == "n" ? "agctn" : "abcdefghiklmnpqrstuvwxyz");
 		$text .= <<<END
-Sequence type: $seqType<br>
+Sequence type: $st<br>
 Number of sequences: $numSeqs <br>
 Total sequence length: $totalLen<br>
+END;
+		if ($totalBadChars > 0)
+		{
+			$text .= <<<END
+$totalBadChars invalid symbols were found 
+(symbols other than $goodchars)
+<br>
+These symbols will be changed to $nsymbol
+END;
+		}
+		if ($seqType == "p" && count($wrongTypeSeqs) > 0)
+		{
+			$seqList = implode("<br>\n",$wrongTypeSeqs);
+			$text .= <<<END
+<p><b>Warning:</b><br>
+The following sequences look like nucleotide sequences. Please verify that they <br>
+are correct protein sequences:<br> $seqList <p>
+END;
+		}
+		if ($seqType == "n" && count($wrongTypeSeqs) > 0)
+		{
+			$seqList = implode("<br>\n",$wrongTypeSeqs);
+			$text .= <<<END
+<p><b>Warning:</b><br>
+The following sequences do not look like nucleotide sequences. Please verify that they <br>
+are correct nucleotide sequences:<br> $seqList <p>
+END;
+		}
+		$text .= <<<END
 <p>
 <b>Please verify that this is correct before starting your job.</b>
 <p>
@@ -210,32 +178,45 @@ END;
 	}
 	return $text;
 }
-# Figure out protein or nucleotide by deleting the the iupac-allowed chars
-# and seeing if anything is left. 
-# If result is ambiguous, save it off for a debug message. 
-function get_seq_type($seq, $seqName)
+function check_seq_type($seq, $name, $seqtype, &$wrongArray)
 {
-	global $ta_debug;
-	global $debug_text;
-	$total = strlen($seq);
-	$ntrep = preg_replace('/[agctnkmbvswdyrhx\-]/','',$seq);
-	$ntreplen = strlen($ntrep);
-	if ($ntreplen == 0)
+	$test = preg_replace('/[agctn]/','',$seq);
+	if (strlen($test) < strlen($seq)/2)
 	{
-		return 'n';
+		# nucleotide
+		if ($seqtype == "p")
+		{
+			array_push($wrongArray,$name);
+		}	
 	}
-	$aarep = preg_replace('/[abcdefghiklmnpqrstuvwxyz*\-\.]/','',$seq);
-	$aareplen = strlen($aarep);
-	if ($aareplen == 0)
+	else
 	{
-		return 'p';
+		if ($seqtype == "n")
+		{
+			array_push($wrongArray,$name);
+		}
 	}
-	if ($ta_debug)
+}
+function clean_sequence($seq,$seqtype,&$badchars)
+{
+	$cleaned = "";
+	if ($seqtype == "n")
 	{
-		$debug_text .= "$seqName: ntrep: $ntrep<br>";
-		$debug_text .= "$seqName: aarep: $aarep<br>";
+		$cleaned = preg_replace('/[^agctn]/','n',$seq,-1,$badchars);
+	}	
+	else
+	{
+		$cleaned = preg_replace('/[^abcdefghiklmnpqrstuvwxyz]/','x',$seq,-1,$badchars);
 	}
-	return 'x'; 
+	return $cleaned;
+}
+function write_cleaned_sequence($fh,$header,$seq)
+{
+	fwrite($fh,$header);
+	for ($i = 0; $i < strlen($seq); $i += 60)
+	{
+		fwrite($fh,substr($seq,$i,60)."\n");
+	}
 }
 function annot_upload_form($form,&$form_state)
 {
@@ -291,6 +272,7 @@ function annot_upload_form_validate($form, &$form_state)
 
 #
 # Steps:
+# Add cleaned file to file_managed
 # Create job key string
 # Make DB entry
 # Launch jobs
@@ -312,6 +294,7 @@ function annot_upload_form_submit($form, &$form_state)
 
 	$fobj = file_load($fid);
 	$fpath = drupal_realpath($fobj->uri);
+	$cleaned_path = "$fpath.cleaned"; # The cleaned copy that we will be actually using
 
 	# First we need a semi-private tag for this job so only the
 	# user in question can see their tracking page
@@ -324,20 +307,25 @@ function annot_upload_form_submit($form, &$form_state)
 
 	$jid = db_insert('tripal_annot')->fields(array(
   		'jobkey' => $jobkey,
-		'ulfid' => $fid,
+		'ulfid' => 0,  # to be updated immediately
 		'ultype' => $type,
 		'ulbases' => $totlen,
 		'ulseqs' => $nseqs,
 		'email' => $email,
 	))->execute();
 
+	$upload_new_name = "upload_$jid";
+	$upload_new_path = tripal_annot_build_file_path($upload_new_name);
+	system("cp $cleaned_path $upload_new_path");
+	$new_fid = annot_add_managed_file($upload_new_name);
+	tripal_annot_update_field($jid,"ulfid",$new_fid);
 
 	# Now start the blast jobs (up to 4)
 	$joblist = array(); # list of entries "jobid:dbnumber" to be stored in DB for use by tracking page
 	$dblist = array(); # db numbers used, needed by the ahrd job
 	for ($j = 1; $j <= 4; $j++)
 	{
-		$jobid = start_blast_job($jid,$j,$fpath,$type);
+		$jobid = start_blast_job($jid,$j,$upload_new_path,$type);
 		if ($jobid != 0)
 		{
 			array_push($joblist, "$jobid:$j");
@@ -380,8 +368,8 @@ function annot_upload_form_submit($form, &$form_state)
 	$iprparam = variable_get("annot_iprparam");
 	
 	$outname = "ipr_$jid.xml";
-	$outpath = DRUPAL_ROOT."/".tripal_get_files_dir("annot")."/$outname";
-	$params = "$tparam -i $fpath -o $outpath -f XML $iprparam ";
+	$outpath = tripal_annot_build_file_path($outname);
+	$params = "$tparam -i $upload_new_path -o $outpath -f XML $iprparam ";
 	$cmd = "$iprpath $params";
 
 	$job_args = array(
@@ -456,7 +444,7 @@ function start_blast_job($jid, $num, $query, $type)
 	$blastpath .= "/$blastprog";	
 	
 	$outname = "blast_$jid"."_$num";
-	$outpath = DRUPAL_ROOT."/".tripal_get_files_dir("annot")."/$outname";
+	$outpath = tripal_annot_build_file_path($outname);
 	$params = " -db $dbpath -query $query -out $outpath -outfmt 6";
 	$cmd = "$blastpath $params";
 
@@ -503,4 +491,12 @@ function tripal_annot_append_job_error($jid,$newstatus)
 	$status .= "$newstatus;";
 	tripal_annot_update_field($jid,"status",$status);
 	
+}
+function tripal_annot_file_dir()
+{
+	return DRUPAL_ROOT."/".tripal_get_files_dir("annot");
+}
+function tripal_annot_build_file_path($filename)
+{
+	return tripal_annot_file_dir()."/$filename";
 }

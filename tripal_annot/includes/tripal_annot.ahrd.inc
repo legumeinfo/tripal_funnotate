@@ -41,7 +41,7 @@ function run_tripal_annot_ahrd($dblist, $jid)
 
 	$yaml_obj["proteins_fasta"] = $upload_fpath;
 	$ahrd_outname = "ahrd_$jobkey.txt";
-	$ahrd_outpath = DRUPAL_ROOT."/".tripal_get_files_dir("annot")."/$ahrd_outname";
+	$ahrd_outpath = tripal_annot_build_file_path($ahrd_outname);
 	$yaml_obj["output"] = $ahrd_outpath;
 
 	if ($r->ultype == "n")
@@ -73,7 +73,7 @@ function run_tripal_annot_ahrd($dblist, $jid)
 			}
 		}
 		$outname = "blast_$jid"."_$dbnum";
-		$outpath = DRUPAL_ROOT."/".tripal_get_files_dir("annot")."/$outname";
+		$outpath = tripal_annot_build_file_path($outname);
 		if (!file_exists($outpath))
 		{
 			tripal_annot_append_error("Blast output $outpath (db$i) not found!");
@@ -108,8 +108,8 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 {
 	$blaststr = implode(" ",$blasts);
 	$outname = "blasts_$jobkey.tar.gz";
-	$outdir = DRUPAL_ROOT."/".tripal_get_files_dir("annot");
-	$outpath = DRUPAL_ROOT."/".tripal_get_files_dir("annot")."/$outname";
+	$outdir = tripal_annot_file_dir();
+	$outpath = tripal_annot_build_file_path($outname);
 	
 	$curdir = getcwd();
 	chdir($outdir);
@@ -151,7 +151,7 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 	}
 
 	$rawname = "ipr_$jid.txt";
-	$rawpath = DRUPAL_ROOT."/".tripal_get_files_dir("annot")."/$rawname";
+	$rawpath = tripal_annot_build_file_path($rawname);
 	$iprdir = variable_get("annot_iprdir","");
 	if (!file_exists("$iprdir/interproscan.sh"))
 	{
@@ -199,12 +199,11 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 			$goline = $fields[13];
 			if (!isset($bestevals[$query]) || $eval < $bestevals[$query])
 			{
-$txt .= "\n\n$query\t$eval $goline\n";
+$txt .= "\n\n$query\t$eval (prior eval:".$bestevals[$query].")\n";
 				$bestevals[$query] = $eval;
 				$bestiprs[$query] = $iprid;
 				$matches = array();
 				$nummatch = preg_match_all("|GO:(\d+)|",$goline,$matches);
-$txt .= "matches:$nummatch\n";
 $txt .= print_r($matches,true);
 				$gostr = ($nummatch > 0 ? implode(";",$matches[1]) : "");	
 				$bestgos[$query] = $gostr;

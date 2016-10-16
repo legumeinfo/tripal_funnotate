@@ -76,7 +76,7 @@ function annot_main_page()
 
 	$form_state = array();
 	$text .= <<<END
-Upload a file of protein or nucleotide sequences and have them annotated against Swissprot plus three species databases (Soy, Medicago, Arabidopsis). 
+Upload a file of protein or nucleotide sequences and have them annotated using InterProScan plus three species databases (Soy, Medicago, Arabidopsis). 
 <p>
 The annotation uses BLAST for alignment, followed by semantic processing of the descriptors using 
 <a href="https://www.cropbio.uni-bonn.de/tools-and-databases-en/ahrd-en">AHRD</a>. 
@@ -116,11 +116,15 @@ function annot_start_form($form,&$form_state)
  		'#process' => array('annot_file_element_process')
 	
     );
-	#$form['email'] = array(
-	#	'#type' => 'textfield',
-	#	'#title' => 'Email (if you wish to be notified):',
-	#	'#size' => 25
-	#);
+
+	$options = array('n' => 'nucleotide', 'p' => 'protein');
+	$form['seqtype'] = array(
+	  '#type' => 'radios',
+	  '#title' => t('Type of sequence:'),
+	  '#options' => $options,
+	  '#description' => t(''),
+	  '#default_value' => 'p',
+		);
 
 	$form['submit'] = array(
 		'#type' => 'submit',
@@ -149,7 +153,8 @@ function annot_start_form_validate($form, &$form_state)
 function annot_start_form_submit($form, &$form_state)
 {
   	$fid = $form_state['values']['UPLOAD'];
-	drupal_goto("annot/upload/$fid" );
+  	$seqtype = $form_state['values']['seqtype'];
+	drupal_goto("annot/upload/$fid",array(query => array("seqtype" => $seqtype)) );
 }
 
 function tripal_annot_mail($key, &$message, $params) 
@@ -239,7 +244,7 @@ function validate_config()
 	return "";
 }
 # Add a file to the managed_file system. 
-# File must be in the public files area, e.g. /sites/default/files/tripal/annot
+# File must be in the public files area (function tripal_annot_get_file_dir)
 function annot_add_managed_file($name)
 {
 	global $user;
@@ -252,17 +257,6 @@ function annot_add_managed_file($name)
 	file_save($file);
 	return $file->fid;
 }
-#function annot_download($file)
-#{
-# 	if(file_exists("/tmp/$file")) 
-#	{
-#    	file_transfer($file->uri, array('Content-disposition', 'attachment; filename='.$file->filename));
-#  	}
-#  	else 
-#	{
-#    	return drupal_access_denied();
-#  	}
-#}
 function tripal_annot_init()
 {
 

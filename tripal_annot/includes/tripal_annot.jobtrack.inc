@@ -50,6 +50,7 @@ Uploaded file: $fname ($seqtype, $nseqs sequences, $totlen total $basetype)
 
 END;
 
+	# Report errors that we managed to catch in the cron functions...
 	if ($error != "")
 	{
 		$earray = explode(";",$error);
@@ -88,7 +89,17 @@ END;
 			}
 			else
 			{
-				$status .= "$dbname BLAST done\n";
+				$jobstat = $r->status;
+				$errmsg = $r->error_msg;
+				if ($jobstat == "Error" || $errmsg != "")
+				{
+					$status .= "$dbname BLAST ERROR: $errmsg\n";
+					$error = "BLAST";
+				}	
+				else
+				{
+					$status .= "$dbname BLAST done\n";
+				}
 			}
 		}
 	}
@@ -113,7 +124,17 @@ END;
 		}
 		else
 		{
-			$status .= "AHRD done\n";
+			$jobstat = $r->status;
+			$errmsg = $r->error_msg;
+			if ($jobstat == "Error" || $errmsg != "")
+			{
+				$status .= "AHRD ERROR: $errmsg\n";
+				$error = "AHRD";
+			}	
+			else
+			{
+					$status .= "AHRD done\n";
+			}
 		}
 	}
 	$result = db_query("select * from tripal_jobs where job_id=$ipr_jobid"); 
@@ -137,7 +158,17 @@ END;
 		}
 		else
 		{
-			$status .= "InterPro done\n";
+			$jobstat = $r->status;
+			$errmsg = $r->error_msg;
+			if ($jobstat == "Error" || $errmsg != "")
+			{
+				$status .= "InterPro ERROR: $errmsg\n";
+				$error = "InterPro";
+			}	
+			else
+			{
+					$status .= "InterPro done\n";
+			}
 		}
 	}
 
@@ -152,6 +183,17 @@ Job in progress:
 $status
 </pre>
 
+END;
+		return $text;
+	}
+	if ($error != "")
+	{
+		$text .= <<< END
+<pre>
+Job status: 
+$status
+</pre>
+<span style="color:red"><b>Job did not complete successfully!</b></span><br>
 END;
 		return $text;
 	}
