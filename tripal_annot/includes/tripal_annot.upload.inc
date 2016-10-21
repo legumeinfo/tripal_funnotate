@@ -294,6 +294,7 @@ function annot_upload_form_submit($form, &$form_state)
 
 	$fobj = file_load($fid);
 	$fpath = drupal_realpath($fobj->uri);
+	$ul_origname = drupal_basename($fpath);
 	$cleaned_path = "$fpath.cleaned"; # The cleaned copy that we will be actually using
 
 	# First we need a semi-private tag for this job so only the
@@ -310,11 +311,15 @@ function annot_upload_form_submit($form, &$form_state)
 		'ulfid' => 0,  # to be updated immediately
 		'ultype' => $type,
 		'ulbases' => $totlen,
+		'ulname' => $ul_origname,
 		'ulseqs' => $nseqs,
 		'email' => $email,
 	))->execute();
 
-	$upload_new_name = "upload_$jid";
+	$upload_new_name = "upload_$fid";  # can't use the jid because then after uninstall/reinstall
+										# the jid resets to 1 but the earlier managed files 
+										# are still in there. We could try to remove them
+										# but this is more robust
 	$upload_new_path = tripal_annot_build_file_path($upload_new_name);
 	system("cp $cleaned_path $upload_new_path");
 	$new_fid = annot_add_managed_file($upload_new_name);
@@ -415,10 +420,11 @@ function jobkey_exists($key)
 function make_jobkey()
 {
 	$char1 = chr(ord('A') + rand(0,25));	
-	$char2 = chr(ord('A') + rand(0,25));	
+	$char2 = chr(ord('1') + rand(0,9));	
 	$char3 = chr(ord('A') + rand(0,25));	
-	$char4 = chr(ord('A') + rand(0,25));	
-	return $char1.$char2.$char3.$char4;
+	$char4 = chr(ord('1') + rand(0,9));	
+	$char5 = chr(ord('A') + rand(0,25));	
+	return $char1.$char2.$char3.$char4.$char5;
 }
 function start_blast_job($jid, $num, $query, $type)
 {

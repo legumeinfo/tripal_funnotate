@@ -19,7 +19,7 @@ function annot_job_page($jobkey)
 	$jarr = $result->fetchAssoc();
 	$error = $jarr["status"];
 	$email = $jarr["email"];
-	$fid = $jarr["ulfid"];
+	$ulname = $jarr["ulname"];
 	$outfid = $jarr["outfid"];
 	$iprfid = $jarr["iprfid"];
 	$blastfid = $jarr["blastfid"];
@@ -41,12 +41,10 @@ function annot_job_page($jobkey)
 		$text = "Unable to determine AHRD job!<p>Error occurred.<p>";
 		return $text;
 	}
-	$fobj = file_load($fid);
-	$fname = $fobj->filename;
 
 	$text = <<<END
 <h3>Annotation Job $jobkey</h3>
-Uploaded file: $fname ($seqtype, $nseqs sequences, $totlen total $basetype)
+Uploaded file: $ulname ($seqtype, $nseqs sequences, $totlen total $basetype)
 
 END;
 

@@ -241,6 +241,10 @@ function validate_config()
 			}
 		}
 	}
+	if (!file_exists("/bin/bash"))
+	{
+		return t("Unable to find /bin/bash");
+	}
 	return "";
 }
 # Add a file to the managed_file system. 

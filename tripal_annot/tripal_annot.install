@@ -25,11 +25,11 @@ function tripal_annot_schema()
       'jobkey' => array(
         'description' => t('Semi-secure key to access job output '),
         'type' => 'varchar',
-        'length' => 7,
+        'length' => 10,
 		'default' => '',
       ),
       'ulfid' => array(
-        'description' => t('Uploaded file ID (file_managed)'),
+        'description' => t('Uploaded file ID (file_managed)'), # this is the file after cleaning
         'type' => 'int',
         'unsigned' => true,
         'not null' => true,
@@ -51,6 +51,12 @@ function tripal_annot_schema()
         'type' => 'int',
         'unsigned' => true,
 		'default' => 0,
+      ),
+      'ulname' => array(
+        'description' => t('Original uploaded file name '),
+        'type' => 'varchar',
+        'length' => 100,
+		'default' => '',
       ),
       'blastfid' => array(
         'description' => t('Blast output files gzipped'),
