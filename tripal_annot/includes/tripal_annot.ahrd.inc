@@ -210,7 +210,7 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 		$nummatch = preg_match_all("|GO:(\d+)|",$goline,$matches);
 		if ($iprid != "")
 		{
-			$alliprs[$query][$iprid] = "$iprid ($iprdesc)";
+			$alliprs[$query][$iprid] = "$iprid"; # ($iprdesc)";
 			foreach ($matches[1] as $go)
 			{
 				$allgos[$query][$go] = $go;

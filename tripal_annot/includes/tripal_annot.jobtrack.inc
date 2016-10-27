@@ -278,6 +278,36 @@ while ( ($line = fgets($fh)) != FALSE)
 	if ($startread)
 	{
 		$fields = preg_split("/\t/",$line);
+		if (trim($fields[4]) != "")
+		{
+			$iprs = explode(":",$fields[4]);
+			$linkouts = array();
+			foreach ($iprs as $i => $ipr)
+			{
+				$linkout = "<a href='https://www.ebi.ac.uk/interpro/entry/$ipr'>$ipr</a>";
+				if ($i % 4 == 3)
+				{
+					$linkout .= "<br>";
+				}
+				array_push($linkouts,$linkout);
+			}
+			$fields[4] = implode("&nbsp;",$linkouts);
+		}
+		if (trim($fields[5]) != "")
+		{
+			$gos = explode(":",$fields[5]);
+			$linkouts = array();
+			foreach ($gos as $i => $go)
+			{
+				$linkout = "<a href='http://amigo.geneontology.org/amigo/term/GO:$go'>$go</a>";
+				if ($i % 4 == 3)
+				{
+					$linkout .= "<br>";
+				}
+				array_push($linkouts,$linkout);
+			}
+			$fields[5] = implode("&nbsp;",$linkouts);
+		}
 		$row = "<tr><td>".implode("</td><td>",$fields)."</td></tr>\n";
 		$text .= $row;
 	}
