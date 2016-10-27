@@ -8,7 +8,22 @@
 
 function annot_job_page($jobkey)
 {
-	$text = "";
+	$text = <<<END
+ 
+<script>
+var time = new Date().getTime();
+function refresh() 
+{
+	 if(new Date().getTime() - time >= 60000) 
+		 window.location.reload(true);
+	 else 
+		 setTimeout(refresh, 60000);
+}
+
+setTimeout(refresh, 60000);
+</script>
+END;
+
 	$result = db_query("select * from tripal_annot where jobkey='$jobkey'");
 	if ($result->rowCount() == 0)
 	{
@@ -42,7 +57,7 @@ function annot_job_page($jobkey)
 		return $text;
 	}
 
-	$text = <<<END
+	$text .= <<<END
 <h3>Annotation Job $jobkey</h3>
 Uploaded file: $ulname ($seqtype, $nseqs sequences, $totlen total $basetype)
 

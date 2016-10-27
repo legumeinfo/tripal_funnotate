@@ -8,6 +8,10 @@
 #
 ##################################################################################
 
+# Note that all files which get added to file_managed are named using the unique "jobkey"
+# This is because the managed file system does not allow duplicated filenames
+# and if a duplicate is added it will fail with no error message
+
 #
 #	Callback function for running AHRD
 #
@@ -132,7 +136,7 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 function run_tripal_annot_ipr($cmd, $outpath, $jid)
 {
 	# We need to know if it's a nucleotide seq since IPR appends to the name
-	$res = db_query("select ultype from tripal_annot where jid=$jid");
+	$res = db_query("select ultype,jobkey from tripal_annot where jid=$jid");
 	if (!$res)
 	{
 		tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
@@ -140,6 +144,7 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 	}	
 	$r = $res->fetchObject();			
 	$seqtype = $r->ultype;	
+	$jobkey = $r->jobkey;	
 
 	$propsdir = variable_get("annot_iprcfgdir");
 	file_put_contents("/tmp/cmd1.txt",$cmd);
@@ -150,7 +155,7 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 		return;
 	}
 
-	$rawname = "ipr_$jid.txt";
+	$rawname = "ipr_$jobkey.txt";
 	$rawpath = tripal_annot_build_file_path($rawname);
 	$iprdir = variable_get("annot_iprdir","");
 	if (!file_exists("$iprdir/interproscan.sh"))
@@ -167,18 +172,19 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 		tripal_append_job_error("jid","Failed to convert InterPro xml to raw");
 		return;
 	}
-
 	$fid = annot_add_managed_file($rawname);
 	tripal_annot_update_field($jid,"iprfid",$fid);
 
 	# Scan the IPR output and get IDs and GOs from the best hits	
+	# Also collect IDs and GOs from ALL the hits that have IDs, since it appears that 
+	# all of these should be regarded as significant
 
-	$txt = "";
-	
 	$fh = fopen($rawpath,"r");
 	$bestiprs = array();
 	$bestgos = array();
 	$bestevals = array();
+	$alliprs = array();
+	$allgos = array();
 	while ( ($line = fgets($fh)) != FALSE)
 	{
 		$fields = preg_split("/\t/",$line);
@@ -189,32 +195,36 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 			$query = preg_replace('/_\d+$/','',$query);
 		}
 		$eval = $fields[8];
-		if (is_numeric($eval))
+		if (!is_numeric($eval))
 		{
-			$iprid = $fields[11];
-			if ($iprid == "NULL")
+			$eval = 1; 
+		}
+		$iprid = $fields[11];
+		$iprdesc = trim($fields[12]);
+		if ($iprid == "NULL")
+		{
+			$iprid = "";
+		}
+		$goline = $fields[13];
+		$matches = array();
+		$nummatch = preg_match_all("|GO:(\d+)|",$goline,$matches);
+		if ($iprid != "")
+		{
+			$alliprs[$query][$iprid] = "$iprid ($iprdesc)";
+			foreach ($matches[1] as $go)
 			{
-				$iprid = "";
-			}
-			$goline = $fields[13];
-			if (!isset($bestevals[$query]) || $eval < $bestevals[$query])
-			{
-$txt .= "\n\n$query\t$eval (prior eval:".$bestevals[$query].")\n";
-				$bestevals[$query] = $eval;
-				$bestiprs[$query] = $iprid;
-				$matches = array();
-				$nummatch = preg_match_all("|GO:(\d+)|",$goline,$matches);
-$txt .= print_r($matches,true);
-				$gostr = ($nummatch > 0 ? implode(";",$matches[1]) : "");	
-				$bestgos[$query] = $gostr;
-$txt .= "$iprid\tGOS:$gostr\n";
+				$allgos[$query][$go] = $go;
 			}
 		}
-	}
+		if (!isset($bestevals[$query]) || $eval < $bestevals[$query])
+		{
+			$gostr = ($nummatch > 0 ? implode(";",$matches[1]) : "");	
+			$bestevals[$query] = $eval;
+			$bestiprs[$query] = $iprid;
+			$bestgos[$query] = $gostr;
+		}
+}
 	fclose($fh);
-$txt .= "\n****************************************\nIPRID\n".print_r($bestiprs,TRUE);
-$txt .= "\n****************************************\nGOS\n".print_r($bestgos,TRUE);
-file_put_contents("/tmp/iprparse.txt",$txt);
 
 	# Now integrate the IPR IDs and GOs into the AHRD output
 	$result = db_query("select outfid from tripal_annot where jid=$jid");
@@ -233,7 +243,6 @@ file_put_contents("/tmp/iprparse.txt",$txt);
 	$fh2 = fopen("/tmp/ahrd_fix.txt","w");
 
 	$got_header == 0;
-system("rm /tmp/txtmatch.txt");
 	while ( ($line = fgets($fh1)) != FALSE)
 	{
 		if ($got_header < 3)
@@ -242,14 +251,17 @@ system("rm /tmp/txtmatch.txt");
 			$got_header++;
 			continue;
 		}
-file_put_contents("/tmp/txtmatch.txt","AHRD:$line"."\n",FILE_APPEND);
 		$fields = preg_split("/\t/",$line);
 		$query = trim($fields[0]);
-		$ipr_query = find_matching_query($query,$bestiprs); 
+		#$ipr_query = find_matching_query($query,$bestiprs); 
+		$ipr_query = find_matching_query($query,$alliprs); 
 		$newline = trim($line);
 		if ($ipr_query != "")
 		{
-			$newline .= "\t".$bestiprs[$ipr_query]."\t".$bestgos[$ipr_query];
+			$iprs = implode(":",$alliprs[$query]);
+			$gos = implode(":",$allgos[$query]);
+			#$newline .= "\t".$bestiprs[$ipr_query]."\t".$bestgos[$ipr_query];
+			$newline .= "\t".$iprs."\t".$gos;
 		}
 		else
 		{
@@ -273,26 +285,17 @@ file_put_contents("/tmp/txtmatch.txt","AHRD:$line"."\n",FILE_APPEND);
 #
 function find_matching_query($longname,&$shortname_array)
 {
-$txt = "";
-$txt .= "try to match $longname\n";
 	if (isset($shortname_array[$longname]))
 	{
-$txt .= "matched $longname!\n";
-file_put_contents("/tmp/txtmatch.txt",$txt,FILE_APPEND);
 		return $longname;
 	}
 	foreach ($shortname_array as $shortname => $foo)
 	{
-$txt .= "try to match $shortname in $longname\n";
 		if (FALSE != strstr($longname,"|$shortname|")) # not perfect match but should be good enough
 		{
-$txt .= "matched $shortname to $longname!\n";
-file_put_contents("/tmp/txtmatch.txt",$txt,FILE_APPEND);
 			return $shortname;
 		}
 	}
-$txt .= "no match!\n";
-file_put_contents("/tmp/txtmatch.txt",$txt,FILE_APPEND);
 	return "";
 }
 

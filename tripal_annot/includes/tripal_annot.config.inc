@@ -117,6 +117,16 @@ function annot_config_form($form_state)
     '#title' => t('InterProScan parameters (optional)'),
     '#default_value' => variable_get('annot_iprparam', ''),
   );
+  $form['annot_hmmdir']= array(
+    '#type' => 'textfield',
+    '#title' => t('Path to HMMER top directory (in which the binaries directory is found)'),
+    '#default_value' => variable_get('annot_hmmdir', ''),
+  );
+  $form['annot_hmmparam']= array(
+    '#type' => 'textfield',
+    '#title' => t('HMMER parameters (optional)'),
+    '#default_value' => variable_get('annot_hmmparam', ''),
+  );
 
 $form['submit'] = array(
     '#type' => 'submit',
@@ -381,6 +391,25 @@ function annot_config_form_validate($form, &$form_state)
 	if(!empty($params)) 
 	{
 		variable_set('annot_iprparam', $form_state['values']['annot_iprparam']);
+	}
+	$path = $form_state['values']['annot_hmmdir'];
+	if(!empty($path) && is_dir($path)) 
+	{
+		$path .= '/binaries/hmmsearch';
+		if(file_exists($path) ) 
+		{
+			variable_set('annot_hmmdir', $form_state['values']['annot_hmmdir']);
+		}
+		else 
+		{
+			$valid = 0;
+			form_set_error('annot_hmmdir', t('Did not locate binaries/hmmsearch in this directory! Please enter a valid directory'));
+		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_hmmdir', t('Please enter a valid directory for HMMER'));
 	}
 
 	$maxsize = $form_state['values']['annot_upload_sizeMB'];

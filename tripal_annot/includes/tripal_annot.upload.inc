@@ -316,7 +316,7 @@ function annot_upload_form_submit($form, &$form_state)
 		'email' => $email,
 	))->execute();
 
-	$upload_new_name = "upload_$fid";  # can't use the jid because then after uninstall/reinstall
+	$upload_new_name = "upload_$jobkey";  # can't use the jid because then after uninstall/reinstall
 										# the jid resets to 1 but the earlier managed files 
 										# are still in there. We could try to remove them
 										# but this is more robust
@@ -420,9 +420,9 @@ function jobkey_exists($key)
 function make_jobkey()
 {
 	$char1 = chr(ord('A') + rand(0,25));	
-	$char2 = chr(ord('1') + rand(0,9));	
+	$char2 = chr(ord('1') + rand(0,8));	
 	$char3 = chr(ord('A') + rand(0,25));	
-	$char4 = chr(ord('1') + rand(0,9));	
+	$char4 = chr(ord('1') + rand(0,8));	
 	$char5 = chr(ord('A') + rand(0,25));	
 	return $char1.$char2.$char3.$char4.$char5;
 }
