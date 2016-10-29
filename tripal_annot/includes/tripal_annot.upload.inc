@@ -325,7 +325,9 @@ function annot_upload_form_submit($form, &$form_state)
 	$new_fid = annot_add_managed_file($upload_new_name);
 	tripal_annot_update_field($jid,"ulfid",$new_fid);
 
+	#
 	# Now start the blast jobs (up to 4)
+	#
 	$joblist = array(); # list of entries "jobid:dbnumber" to be stored in DB for use by tracking page
 	$dblist = array(); # db numbers used, needed by the ahrd job
 	for ($j = 1; $j <= 4; $j++)
@@ -344,7 +346,9 @@ function annot_upload_form_submit($form, &$form_state)
 		drupal_goto("annot/job/$jobkey" );
 	}
 
+	#
 	# Now start the ahrd job
+	#
 	$dbstr = join(",",$dblist);
 	$job_args = array(
 		"dblist" => $dbstr,
@@ -360,7 +364,9 @@ function annot_upload_form_submit($form, &$form_state)
 	);
 	array_push($joblist,$job_id);
 
+	#
 	# Now start the interpro job
+	#
 	$iprdir = variable_get("annot_iprdir","");
 	if (!file_exists("$iprdir/interproscan.sh"))
 	{
@@ -391,9 +397,61 @@ function annot_upload_form_submit($form, &$form_state)
 	);
 	array_push($joblist,$job_id);
 
-	$jobstr = join(",",$joblist);
-	db_update('tripal_annot')
-		->fields(array(
+	#
+	# Now start the hmmer job...protein only, for the moment
+	#
+	if ($type == "p")
+	{
+		$hmmdir = variable_get("annot_hmmdir","");
+		if (!file_exists("$hmmdir/binaries/hmmsearch"))
+		{
+			drupal_set_message("Can't find hmmsearch in $hmmdir/binaries!");
+			return 0;
+		}
+		$hmmsearchpath = "$hmmdir/binaries/hmmsearch";
+
+		$hmmdb = variable_get("annot_hmmdb");
+		$hmmparam = variable_get("annot_hmmparam");
+		
+		$outname = "hmm_$jobkey.tbl";
+		$outpath = tripal_annot_build_file_path($outname);
+		$params = " --tblout $outpath $hmmdb $upload_new_path ";
+		$cmd = "$hmmsearchpath $params";
+
+		$job_args = array(
+			"cmd" => $cmd,
+			"out" => $outpath,
+			"jid" => $jid);
+
+		$job_id = tripal_add_job(
+		  "annot $jid HMMR",
+		  "tripal_annot",
+		  "run_tripal_annot_hmm",
+		  $job_args,
+		  $user->uid
+		);
+		array_push($joblist,$job_id);
+	}
+
+	#
+	# Now start the postprocesing job
+	#
+
+	$job_args = array(
+		"jid" => $jid);
+
+	$job_id = tripal_add_job(
+	  "annot $jid POST",
+	  "tripal_annot",
+	  "run_tripal_annot_post",
+	  $job_args,
+	  $user->uid
+	);
+	array_push($joblist,$job_id);
+
+$jobstr = join(",",$joblist);
+db_update('tripal_annot')
+	->fields(array(
 	        'joblist' => $jobstr
 	        )
 		)

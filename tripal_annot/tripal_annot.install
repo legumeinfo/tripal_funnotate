@@ -70,6 +70,18 @@ function tripal_annot_schema()
         'length' => 255,
 		'default' => '',
       ),
+      'hmmfid' => array(
+        'description' => t('HMM output file'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'ahrdfid' => array(
+        'description' => t('AHRD output file ID'),
+        'type' => 'int',
+		'default' => 0,
+		'unsigned' => 'true'
+      ),
       'outfid' => array(
         'description' => t('Final output file ID'),
         'type' => 'int',

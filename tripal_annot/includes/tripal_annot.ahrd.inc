@@ -3,8 +3,8 @@
 ##################################################################################
 #
 #	Run AHRD on the accumulated blast output files
-#	and do other postprocessing (if any) to finish the job.
-#	This file also has the InterPro handler.
+#
+#	This file also has the InterPro handler, and the HMMER handler. 
 #
 ##################################################################################
 
@@ -105,8 +105,7 @@ function run_tripal_annot_ahrd($dblist, $jid)
 		return;
 	}
 	$fid = annot_add_managed_file($ahrd_outname);
-
-	tripal_annot_update_field($jid,	"outfid",$fid);
+	tripal_annot_update_field($jid,	"ahrdfid",$fid);
 }
 function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 {
@@ -175,127 +174,57 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 	$fid = annot_add_managed_file($rawname);
 	tripal_annot_update_field($jid,"iprfid",$fid);
 
-	# Scan the IPR output and get IDs and GOs from the best hits	
-	# Also collect IDs and GOs from ALL the hits that have IDs, since it appears that 
-	# all of these should be regarded as significant
 
-	$fh = fopen($rawpath,"r");
-	$bestiprs = array();
-	$bestgos = array();
-	$bestevals = array();
-	$alliprs = array();
-	$allgos = array();
-	while ( ($line = fgets($fh)) != FALSE)
-	{
-		$fields = preg_split("/\t/",$line);
-		$query = $fields[0];
-		if ($seqtype == "n")
-		{
-			# IPR adds _NN to indicate the ORF number; must remove
-			$query = preg_replace('/_\d+$/','',$query);
-		}
-		$eval = $fields[8];
-		if (!is_numeric($eval))
-		{
-			$eval = 1; 
-		}
-		$iprid = $fields[11];
-		$iprdesc = trim($fields[12]);
-		if ($iprid == "NULL")
-		{
-			$iprid = "";
-		}
-		$goline = $fields[13];
-		$matches = array();
-		$nummatch = preg_match_all("|GO:(\d+)|",$goline,$matches);
-		if ($iprid != "")
-		{
-			$alliprs[$query][$iprid] = "$iprid"; # ($iprdesc)";
-			foreach ($matches[1] as $go)
-			{
-				$allgos[$query][$go] = $go;
-			}
-		}
-		if (!isset($bestevals[$query]) || $eval < $bestevals[$query])
-		{
-			$gostr = ($nummatch > 0 ? implode(";",$matches[1]) : "");	
-			$bestevals[$query] = $eval;
-			$bestiprs[$query] = $iprid;
-			$bestgos[$query] = $gostr;
-		}
 }
-	fclose($fh);
 
-	# Now integrate the IPR IDs and GOs into the AHRD output
-	$result = db_query("select outfid from tripal_annot where jid=$jid");
-	if ($result->rowCount() == 0)
+function run_tripal_annot_hmm($cmd, $outpath, $jid)
+{
+	$res = db_query("select ultype,jobkey from tripal_annot where jid=$jid");
+	if (!$res)
 	{
-		tripal_append_job_error("jid","InterPro: could not find database entry for job $jid");
+		tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
+		return;
+	}	
+	$r = $res->fetchObject();			
+	$jobkey = $r->jobkey;	
+
+	file_put_contents("/tmp/cmd3.txt",$cmd);
+	system("$cmd > /tmp/annothmm.txt 2>& 1" );
+	if (!file_exists($outpath))
+	{
+		tripal_append_job_error("jid","Failed to create HMMER result $outpath");
 		return;
 	}
+	$fid = annot_add_managed_file(basename($outpath));
+	tripal_annot_update_field($jid,"hmmfid",$fid);
 
-	$jarr = $result->fetchAssoc();
-	$ahrd_fid = $jarr["outfid"];
-	$ahrd_fobj = file_load($ahrd_fid);
-	$ahrd_path = drupal_realpath($ahrd_fobj->uri);
-
-	$fh1 = fopen($ahrd_path,"r");
-	$fh2 = fopen("/tmp/ahrd_fix.txt","w");
-
-	$got_header == 0;
-	while ( ($line = fgets($fh1)) != FALSE)
+	$fh = fopen($outpath,"r");
+	$besthit = array();
+	$besteval = array();
+	$bestscore = array();
+	while ( ($line = fgets($fh)) != FALSE)
 	{
-		if ($got_header < 3)
-		{
-			fwrite($fh2,$line);
-			$got_header++;
-			continue;
-		}
+		if (substr($line,0,1) == "#") continue;
 		$fields = preg_split("/\t/",$line);
-		$query = trim($fields[0]);
-		#$ipr_query = find_matching_query($query,$bestiprs); 
-		$ipr_query = find_matching_query($query,$alliprs); 
-		$newline = trim($line);
-		if ($ipr_query != "")
+		$query = $fields[0];
+		$target = $fields[2];
+		$evalue = $fields[4];
+		$score = $fields[5];
+		if (!isset($besthit[$query]))
 		{
-			$iprs = implode(":",$alliprs[$query]);
-			$gos = implode(":",$allgos[$query]);
-			#$newline .= "\t".$bestiprs[$ipr_query]."\t".$bestgos[$ipr_query];
-			$newline .= "\t".$iprs."\t".$gos;
+			$besthit[$query] = $target;
+			$besteval[$query] = $eval;
+			$bestscore[$query] = $score;
 		}
 		else
 		{
-			$newline .= "\t\t";
-		}
-		fwrite($fh2,"$newline\n");
-	}
-	fclose($fh1);
-	fclose($fh2);
-
-	system("cp $ahrd_path /tmp/ahrd_orig.txt");
-	system("cp /tmp/ahrd_fix.txt $ahrd_path");
-}
-#
-# Unfortunately some tools convert uniprot fasta headers like sp|Q197F8|002R_IIV3
-# to shortened names like Q197F8 .
-# Interpro does this, hence we have to do a special check to match the AHRD query names, 
-# which maintain the full query name. 
-# $longname : from AHRD output
-# $shortname : in InterPro output
-#
-function find_matching_query($longname,&$shortname_array)
-{
-	if (isset($shortname_array[$longname]))
-	{
-		return $longname;
-	}
-	foreach ($shortname_array as $shortname => $foo)
-	{
-		if (FALSE != strstr($longname,"|$shortname|")) # not perfect match but should be good enough
-		{
-			return $shortname;
+			if ($eval < $besteval[$query] ||
+				($eval == $besteval[$query] && $score > $bestscore[$query]))
+			{
+				$besthit[$query] = $target;
+				$besteval[$query] = $eval;
+				$bestscore[$query] = $score;
+			}
 		}
 	}
-	return "";
 }
-

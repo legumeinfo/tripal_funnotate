@@ -122,6 +122,11 @@ function annot_config_form($form_state)
     '#title' => t('Path to HMMER top directory (in which the binaries directory is found)'),
     '#default_value' => variable_get('annot_hmmdir', ''),
   );
+  $form['annot_hmmdb']= array(
+    '#type' => 'textfield',
+    '#title' => t('Path to HMMER database (hmm file)'),
+    '#default_value' => variable_get('annot_hmmdb', ''),
+  );
   $form['annot_hmmparam']= array(
     '#type' => 'textfield',
     '#title' => t('HMMER parameters (optional)'),
@@ -410,6 +415,28 @@ function annot_config_form_validate($form, &$form_state)
 	{
 		$valid = 0;
 		form_set_error('annot_hmmdir', t('Please enter a valid directory for HMMER'));
+	}
+	$path = $form_state['values']['annot_hmmdb'];
+	if(!empty($path) && is_file($path)) 
+	{
+		$exts = array("h3f","h3i","h3m","h3p");
+		foreach ($exts as $ext)
+		{
+			if(!file_exists("$path.$ext") ) 
+			{
+				$valid = 0;
+				form_set_error('annot_hmmdb', t('Did not locate the ').".$ext".t(' file with the .hmm file!'));
+			}
+		}
+		if ($valid)
+		{
+			variable_set('annot_hmmdb', $form_state['values']['annot_hmmdb']);
+		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_hmmdb', t('Please enter a valid path to the HMMER database hmm file'));
 	}
 
 	$maxsize = $form_state['values']['annot_upload_sizeMB'];

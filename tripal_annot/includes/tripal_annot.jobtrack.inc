@@ -35,20 +35,32 @@ END;
 	$error = $jarr["status"];
 	$email = $jarr["email"];
 	$ulname = $jarr["ulname"];
+	$ahrdfid = $jarr["ahrdfid"];
 	$outfid = $jarr["outfid"];
 	$iprfid = $jarr["iprfid"];
+	$hmmfid = $jarr["hmmfid"];
 	$blastfid = $jarr["blastfid"];
 	$nseqs = $jarr["ulseqs"];
 	$totlen = $jarr["ulbases"];
-	$seqtype = ($jarr["ultype"] == "n" ? "nucleotide" : "protein");
+	$seqtype = $jarr["ultype"];
 	$basetype = ($jarr["ultype"] == "n" ? "basepairs" : "proteins");
 
 	$joblist = explode(",",$jarr["joblist"]);
-	$ipr_jobid = array_pop($joblist);
-	if (!is_numeric($ipr_jobid))
+	$post_jobid = array_pop($joblist);
+	if (!is_numeric($post_jobid))
 	{
-		$text = "Unable to determine InterPro job!<p>Error occurred.<p>";
+		$text = "Unable to determine postprocessing job!<p>Error occurred.<p>";
 		return $text;
+	}
+	$hmm_jobid = 0;
+	if ($seqtype == "p")
+	{
+		$hmm_jobid = array_pop($joblist);
+		if (!is_numeric($hmm_jobid))
+		{
+			$text = "Unable to determine HMM job!<p>Error occurred.<p>";
+			return $text;
+		}
 	}
 	$ahrd_jobid = array_pop($joblist);
 	if (!is_numeric($ahrd_jobid))
@@ -56,10 +68,17 @@ END;
 		$text = "Unable to determine AHRD job!<p>Error occurred.<p>";
 		return $text;
 	}
+	$ipr_jobid = array_pop($joblist);
+	if (!is_numeric($ipr_jobid))
+	{
+		$text = "Unable to determine InterPro job!<p>Error occurred.<p>";
+		return $text;
+	}
 
+	$seqtypestr = ($seqtype == "n" ? "nucleotide" : "protein");
 	$text .= <<<END
 <h3>Annotation Job $jobkey</h3>
-Uploaded file: $ulname ($seqtype, $nseqs sequences, $totlen total $basetype)
+Uploaded file: $ulname ($seqtypestr, $nseqs sequences, $totlen total $basetype)
 
 END;
 
@@ -184,6 +203,77 @@ END;
 			}
 		}
 	}
+	if ($hmm_jobid != 0)
+	{
+		$result = db_query("select * from tripal_jobs where job_id=$hmm_jobid"); 
+		if (!$result)
+		{
+			$text .= "<p>Job <tt>$hmm_jobid</tt> (HMM) was not found!<p>An error occurred.";
+			return $text;
+		}
+		$r = $result->fetchObject();			
+		if (NULL == $r->start_time)
+		{
+			$status .= "HMM queued\n";
+			$numleft++;
+		}
+		else
+		{
+			if (NULL == $r->end_time)
+			{
+				$status .= "HMM running\n";
+				$numleft++;
+			}
+			else
+			{
+				$jobstat = $r->status;
+				$errmsg = $r->error_msg;
+				if ($jobstat == "Error" || $errmsg != "")
+				{
+					$status .= "HMM ERROR: $errmsg\n";
+					$error = "HMM";
+				}	
+				else
+				{
+						$status .= "HMM done\n";
+				}
+			}
+		}
+	}
+	$result = db_query("select * from tripal_jobs where job_id=$post_jobid"); 
+	if (!$result)
+	{
+		$text .= "<p>Job <tt>$post_jobid</tt> (postprocess) was not found!<p>An error occurred.";
+		return $text;
+	}
+	$r = $result->fetchObject();			
+	if (NULL == $r->start_time)
+	{
+		$status .= "Postprocessing queued\n";
+		$numleft++;
+	}
+	else
+	{
+		if (NULL == $r->end_time)
+		{
+			$status .= "Postprocessing running\n";
+			$numleft++;
+		}
+		else
+		{
+			$jobstat = $r->status;
+			$errmsg = $r->error_msg;
+			if ($jobstat == "Error" || $errmsg != "")
+			{
+				$status .= "Postprocessing ERROR: $errmsg\n";
+				$error = "Postprocessing";
+			}	
+			else
+			{
+					$status .= "Postprocessing done\n";
+			}
+		}
+	}
 
 	#
 	# Jobs are still running so just show the status of the jobs
@@ -224,14 +314,20 @@ END;
 			$params = array('msg' => $msg), "noreply@legumeinfo.org",  TRUE);
 	}
 
-	$fobj = file_load($outfid); # the AHRD output
-	$outurl = file_create_url($fobj->uri);
+	$fobj_ahrd = file_load($ahrdfid); # the AHRD output
+	$url_ahrd = file_create_url($fobj->uri);
 
 	$fobj2 = file_load($blastfid); #  the blast gzip
 	$outurl2 = file_create_url($fobj2->uri);
 
 	$fobj3 = file_load($iprfid); #  interpro output
 	$outurl3 = file_create_url($fobj3->uri);
+
+	$fobj4 = file_load($hmmfid); #  interpro output
+	$outurl4 = file_create_url($fobj4->uri);
+
+	$fobj_sum = file_load($outfid); #  summary output
+	$url_sum = file_create_url($fobj_sum->uri);
 
 	$stats = array();
 	$err = annot_calc_stats($stats, $jarr, $fobj);
@@ -255,32 +351,31 @@ END;
 	</tr>
 </table>
 <p>
-<a href="$outurl" style="text-decoration:underline">AHRD Annotation Output</a>
- (right-click to download)
-<br>
 <a href="$outurl2" style="text-decoration:underline">BLAST output files</a> (tar/gzip archive)
 <br>
 <a href="$outurl3" style="text-decoration:underline">InterPro output</a> (txt file, RAW format)
+<br>
+<a href="$outurl4" style="text-decoration:underline">HMM output</a> (txt file,tabular)
+<br>
+<a href="$url_ahrd" style="text-decoration:underline">AHRD output</a> (txt file,tabular)
 <p>
-Or view the output here:<br>
+Summary Table 
+(<a href="$url_sum" style="text-decoration:underline">download</a>) :
 <table>
 END;
 
-$fpath = drupal_realpath($fobj->uri);
+$fpath = drupal_realpath($fobj_sum->uri);
 $fh = fopen($fpath,"r");
-$startread = 0;
+$linenum = 0;
 while ( ($line = fgets($fh)) != FALSE)
 {
-	if (substr($line,0,17 ) == "Protein-Accession")
+	$linenum++;
+	$fields = preg_split("/\t/",$line);
+	if ($linenum > 1)
 	{
-		$startread = 1;
-	}
-	if ($startread)
-	{
-		$fields = preg_split("/\t/",$line);
-		if (trim($fields[4]) != "")
+		if (trim($fields[3]) != "")
 		{
-			$iprs = explode(":",$fields[4]);
+			$iprs = explode(",",$fields[3]);
 			$linkouts = array();
 			foreach ($iprs as $i => $ipr)
 			{
@@ -291,11 +386,11 @@ while ( ($line = fgets($fh)) != FALSE)
 				}
 				array_push($linkouts,$linkout);
 			}
-			$fields[4] = implode("&nbsp;",$linkouts);
+			$fields[3] = implode("&nbsp;",$linkouts);
 		}
-		if (trim($fields[5]) != "")
+		if (trim($fields[4]) != "")
 		{
-			$gos = explode(":",$fields[5]);
+			$gos = explode(",",$fields[4]);
 			$linkouts = array();
 			foreach ($gos as $i => $go)
 			{
@@ -306,11 +401,26 @@ while ( ($line = fgets($fh)) != FALSE)
 				}
 				array_push($linkouts,$linkout);
 			}
+			$fields[4] = implode("&nbsp;",$linkouts);
+		}
+		if (trim($fields[5]) != "") # only one gene family so far but....
+		{
+			$gfs = explode(",",$fields[5]);
+			$linkouts = array();
+			foreach ($gfs as $i => $gf)
+			{
+				$linkout = "<a href=\"http://legumeinfo.org/chado_phylotree/phytozome_10_2.$gf\">$gf</a>";
+				if ($i % 4 == 3)
+				{
+					$linkout .= "<br>";
+				}
+				array_push($linkouts,$linkout);
+			}
 			$fields[5] = implode("&nbsp;",$linkouts);
 		}
-		$row = "<tr><td>".implode("</td><td>",$fields)."</td></tr>\n";
-		$text .= $row;
 	}
+	$row = "<tr><td>".implode("</td><td>",$fields)."</td></tr>\n";
+	$text .= $row;
 }
 $text .= "\n</table>\n";
 
@@ -346,7 +456,7 @@ function annot_calc_stats(&$stats,$jarr,$fobj)
 			break; # empty line, end of file presumably
 		}
 		$f = preg_split('/\t/',$line);
-		if (count($f) != 6)
+		if ( count($f) != 7) 
 		{
 			$nf = count($f);
 			$ret = "<p><br><span style='color:red'>The output AHRD file does not have the right format!</span><br>Bad line:<br>$line<br>Num fields:$nf<p>";

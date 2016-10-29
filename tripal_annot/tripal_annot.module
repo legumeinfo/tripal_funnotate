@@ -3,6 +3,7 @@ require_once("includes/tripal_annot.config.inc");
 require_once("includes/tripal_annot.ahrd.inc");
 require_once("includes/tripal_annot.upload.inc");
 require_once("includes/tripal_annot.jobtrack.inc");
+require_once("includes/tripal_annot.post.inc");
 require_once("includes/Spyc.php");
 
 #####################################################################################
@@ -266,4 +267,9 @@ function tripal_annot_init()
 
 #   drupal_add_js (drupal_get_path('theme', 'tripal').'/js/tripal_annot.js');
 #   drupal_add_css(drupal_get_path('theme', 'tripal').'/css/tripal_annot.css');
+}
+function path_from_fid($fid)
+{
+	$fobj = file_load($fid);
+	return drupal_realpath($fobj->uri);
 }
