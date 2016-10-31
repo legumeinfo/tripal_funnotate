@@ -39,8 +39,7 @@ function run_tripal_annot_ahrd($dblist, $jid)
 		
 	}	
 	$r = $res->fetchObject();			
-	$upload_fobj =	file_load($r->ulfid); 		
-	$upload_fpath = drupal_realpath($upload_fobj->uri);
+	$upload_fpath = tripal_annot_build_file_path($r->ulname);
 	$jobkey = $r->jobkey;
 
 	$yaml_obj["proteins_fasta"] = $upload_fpath;
@@ -104,8 +103,7 @@ function run_tripal_annot_ahrd($dblist, $jid)
 		tripal_append_job_error("jid","AHRD failed! (no output file)");
 		return;
 	}
-	$fid = annot_add_managed_file($ahrd_outname);
-	tripal_annot_update_field($jid,	"ahrdfid",$fid);
+	tripal_annot_update_field($jid,	"ahrdname",$ahrd_outname);
 }
 function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 {
@@ -124,8 +122,7 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 		tripal_append_job_error("jid","Failed to create blast gzip $outpath");
 		return;
 	}
-	$fid = annot_add_managed_file($outname);
-	tripal_annot_update_field($jid,"blastfid",$fid);
+	tripal_annot_update_field($jid,"blastname",$outname);
 }
 
 
@@ -171,8 +168,7 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 		tripal_append_job_error("jid","Failed to convert InterPro xml to raw");
 		return;
 	}
-	$fid = annot_add_managed_file($rawname);
-	tripal_annot_update_field($jid,"iprfid",$fid);
+	tripal_annot_update_field($jid,"iprname",$rawname);
 
 
 }
@@ -195,8 +191,7 @@ function run_tripal_annot_hmm($cmd, $outpath, $jid)
 		tripal_append_job_error("jid","Failed to create HMMER result $outpath");
 		return;
 	}
-	$fid = annot_add_managed_file(basename($outpath));
-	tripal_annot_update_field($jid,"hmmfid",$fid);
+	tripal_annot_update_field($jid,"hmmname",basename($outpath));
 
 	$fh = fopen($outpath,"r");
 	$besthit = array();

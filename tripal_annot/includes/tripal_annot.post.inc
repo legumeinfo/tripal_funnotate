@@ -17,14 +17,14 @@ function run_tripal_annot_post($jid)
 	$r = $res->fetchObject();			
 	$seqtype = $r->ultype;	
 	$jobkey = $r->jobkey;	
-	$ahrdfid = $r->ahrdfid;	
-	$iprfid = $r->iprfid;	
-	$hmmfid = $r->hmmfid;	
+	$ahrdname = $r->ahrdname;	
+	$iprname = $r->iprname;	
+	$hmmname = $r->hmmname;	
 
 	# Scan the IPR output and collect IDs and GOs from ALL the hits that have IDs, since it appears that 
 	# all of these should be regarded as significant
 
-	$ipr_path = path_from_fid($iprfid);
+	$ipr_path = tripal_annot_build_file_path($iprname);
 	$fh = fopen($ipr_path,"r");
 	$alliprs = array();
 	$allgos = array();
@@ -66,9 +66,9 @@ function run_tripal_annot_post($jid)
 	# Load the HMM output, if any
 	#
 	$best_hmm_hit = array();
-	if ($hmmfid != 0)
+	if ($hmmname != "")
 	{
-		$hmm_path = path_from_fid($hmmfid);
+		$hmm_path = tripal_annot_build_file_path($hmmname);
 		$fh = fopen($hmm_path,"r");
 		$best_hmm_eval = array();
 		$best_hmm_score = array();
@@ -98,14 +98,12 @@ function run_tripal_annot_post($jid)
 			}
 		}
 	}
-$str = print_r($best_hmm_hit,true);
-file_put_contents("/tmp/hmm.txt",$str);
 
 	#
 	# Create the summary output file
 	#
 
-	$ahrd_path = path_from_fid($ahrdfid);
+	$ahrd_path = tripal_annot_build_file_path($ahrdname);
 	$sum_name = "summary_$jobkey.txt";
 	$sum_path = tripal_annot_build_file_path($sum_name);
 
@@ -150,8 +148,7 @@ file_put_contents("/tmp/hmm.txt",$str);
 	fclose($fh1);
 	fclose($fh2);
 
-	$sumfid = annot_add_managed_file($sum_name);
-	tripal_annot_update_field($jid,"outfid",$sumfid);
+	tripal_annot_update_field($jid,"sumname",$sum_name);
 
 }
 

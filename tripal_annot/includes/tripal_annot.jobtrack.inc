@@ -34,12 +34,12 @@ END;
 	$jarr = $result->fetchAssoc();
 	$error = $jarr["status"];
 	$email = $jarr["email"];
-	$ulname = $jarr["ulname"];
-	$ahrdfid = $jarr["ahrdfid"];
-	$outfid = $jarr["outfid"];
-	$iprfid = $jarr["iprfid"];
-	$hmmfid = $jarr["hmmfid"];
-	$blastfid = $jarr["blastfid"];
+	$ul_origname = $jarr["ul_origname"];
+	$ahrdname = $jarr["ahrdname"];
+	$sumname = $jarr["sumname"];
+	$iprname = $jarr["iprname"];
+	$hmmname = $jarr["hmmname"];
+	$blastname = $jarr["blastname"];
 	$nseqs = $jarr["ulseqs"];
 	$totlen = $jarr["ulbases"];
 	$seqtype = $jarr["ultype"];
@@ -62,23 +62,23 @@ END;
 			return $text;
 		}
 	}
-	$ahrd_jobid = array_pop($joblist);
-	if (!is_numeric($ahrd_jobid))
-	{
-		$text = "Unable to determine AHRD job!<p>Error occurred.<p>";
-		return $text;
-	}
 	$ipr_jobid = array_pop($joblist);
 	if (!is_numeric($ipr_jobid))
 	{
 		$text = "Unable to determine InterPro job!<p>Error occurred.<p>";
 		return $text;
 	}
+	$ahrd_jobid = array_pop($joblist);
+	if (!is_numeric($ahrd_jobid))
+	{
+		$text = "Unable to determine AHRD job!<p>Error occurred.<p>";
+		return $text;
+	}
 
 	$seqtypestr = ($seqtype == "n" ? "nucleotide" : "protein");
 	$text .= <<<END
 <h3>Annotation Job $jobkey</h3>
-Uploaded file: $ulname ($seqtypestr, $nseqs sequences, $totlen total $basetype)
+Uploaded file: $ul_origname ($seqtypestr, $nseqs sequences, $totlen total $basetype)
 
 END;
 
@@ -314,23 +314,14 @@ END;
 			$params = array('msg' => $msg), "noreply@legumeinfo.org",  TRUE);
 	}
 
-	$fobj_ahrd = file_load($ahrdfid); # the AHRD output
-	$url_ahrd = file_create_url($fobj->uri);
-
-	$fobj2 = file_load($blastfid); #  the blast gzip
-	$outurl2 = file_create_url($fobj2->uri);
-
-	$fobj3 = file_load($iprfid); #  interpro output
-	$outurl3 = file_create_url($fobj3->uri);
-
-	$fobj4 = file_load($hmmfid); #  interpro output
-	$outurl4 = file_create_url($fobj4->uri);
-
-	$fobj_sum = file_load($outfid); #  summary output
-	$url_sum = file_create_url($fobj_sum->uri);
+	$url_ahrd = tripal_annot_file_url($ahrdname);
+	$url_blast = tripal_annot_file_url($blastname);
+	$url_ipr = tripal_annot_file_url($iprname);
+	$url_hmm = tripal_annot_file_url($hmmname);
+	$url_sum = tripal_annot_file_url($sumname);
 
 	$stats = array();
-	$err = annot_calc_stats($stats, $jarr, $fobj);
+	$err = annot_calc_stats($stats, $jarr, $sumname);
 	if ($err != "")
 	{
 		$text .= $err;
@@ -351,11 +342,11 @@ END;
 	</tr>
 </table>
 <p>
-<a href="$outurl2" style="text-decoration:underline">BLAST output files</a> (tar/gzip archive)
+<a href="$url_blast" style="text-decoration:underline">BLAST output files</a> (tar/gzip archive)
 <br>
-<a href="$outurl3" style="text-decoration:underline">InterPro output</a> (txt file, RAW format)
+<a href="$url_ipr" style="text-decoration:underline">InterPro output</a> (txt file, RAW format)
 <br>
-<a href="$outurl4" style="text-decoration:underline">HMM output</a> (txt file,tabular)
+<a href="$url_hmm" style="text-decoration:underline">HMM output</a> (txt file,tabular)
 <br>
 <a href="$url_ahrd" style="text-decoration:underline">AHRD output</a> (txt file,tabular)
 <p>
@@ -364,7 +355,7 @@ Summary Table
 <table>
 END;
 
-$fpath = drupal_realpath($fobj_sum->uri);
+$fpath = tripal_annot_build_file_path($sumname);
 $fh = fopen($fpath,"r");
 $linenum = 0;
 while ( ($line = fgets($fh)) != FALSE)
@@ -433,22 +424,15 @@ $text .= "\n</table>\n";
 #	DB to build a table, moreover must use the same regex
 #	as in the yml file. 
 
-function annot_calc_stats(&$stats,$jarr,$fobj)
+function annot_calc_stats(&$stats,$jarr,$sumname)
 {
 	$ret = "";
 	$numSeqs = $jarr["ulseqs"];		
-	$fpath = drupal_realpath($fobj->uri);
+	$fpath = tripal_annot_build_file_path($sumname);
 	$fh = fopen($fpath,"r");
 	$numhit = 0;
 	$numgo = 0;
-	# read to the header line - or could skip 3 lines
-	while ( ($line = fgets($fh)) != FALSE)
-	{
-		if (substr($line,0,17 ) == "Protein-Accession")
-		{
-			break;
-		}
-	}	
+	$line = fgets($fh); # header
 	while ( ($line = fgets($fh)) != FALSE)
 	{
 		if (!preg_match('/\S/',$line))
@@ -456,17 +440,17 @@ function annot_calc_stats(&$stats,$jarr,$fobj)
 			break; # empty line, end of file presumably
 		}
 		$f = preg_split('/\t/',$line);
-		if ( count($f) != 7) 
+		if ( count($f) != 6) 
 		{
 			$nf = count($f);
-			$ret = "<p><br><span style='color:red'>The output AHRD file does not have the right format!</span><br>Bad line:<br>$line<br>Num fields:$nf<p>";
+			$ret = "<p><br><span style='color:red'>The Summary file does not have the right format!</span><br>Bad line:<br>$line<br>Num fields:$nf<p>";
 			return $ret;
 		}
 		if (trim($f[3]) != "" && trim($f[3]) != "Unknown protein")
 		{
 			$numhit++;
 		}
-		if (trim($f[5]) != "")
+		if (trim($f[4]) != "")
 		{
 			$numgo++;
 		}	
@@ -478,4 +462,9 @@ function annot_calc_stats(&$stats,$jarr,$fobj)
 	$stats["pcthit"] = floor((100*$numhit)/$numSeqs);
 	$stats["pctgo"] = floor((100*$numgo)/$numSeqs);
 	return $ret;
+}
+#TODO is this robust?
+function tripal_annot_file_url($fname)
+{
+	return file_create_url("public://tripal/annot/$fname");
 }

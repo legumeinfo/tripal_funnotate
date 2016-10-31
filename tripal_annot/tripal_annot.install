@@ -28,11 +28,11 @@ function tripal_annot_schema()
         'length' => 10,
 		'default' => '',
       ),
-      'ulfid' => array(
-        'description' => t('Uploaded file ID (file_managed)'), # this is the file after cleaning
-        'type' => 'int',
-        'unsigned' => true,
-        'not null' => true,
+      'ulname' => array(
+        'description' => t('Uploaded file name, after cleaning'), 
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
       ),
       'ultype' => array(
         'description' => t('Type of the uploaded sequence (n or p). '),
@@ -52,41 +52,41 @@ function tripal_annot_schema()
         'unsigned' => true,
 		'default' => 0,
       ),
-      'ulname' => array(
+      'ul_origname' => array(
         'description' => t('Original uploaded file name '),
         'type' => 'varchar',
-        'length' => 100,
+        'length' => 255,
 		'default' => '',
       ),
-      'blastfid' => array(
+      'blastname' => array(
         'description' => t('Blast output files gzipped'),
         'type' => 'varchar',
         'length' => 255,
 		'default' => '',
       ),
-      'iprfid' => array(
+      'iprname' => array(
         'description' => t('InterPro output file'),
         'type' => 'varchar',
         'length' => 255,
 		'default' => '',
       ),
-      'hmmfid' => array(
+      'hmmname' => array(
         'description' => t('HMM output file'),
         'type' => 'varchar',
         'length' => 255,
 		'default' => '',
       ),
-      'ahrdfid' => array(
-        'description' => t('AHRD output file ID'),
-        'type' => 'int',
-		'default' => 0,
-		'unsigned' => 'true'
+      'ahrdname' => array(
+        'description' => t('AHRD output file'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
       ),
-      'outfid' => array(
-        'description' => t('Final output file ID'),
-        'type' => 'int',
-		'default' => 0,
-		'unsigned' => 'true'
+      'sumname' => array(
+        'description' => t('Summary output file'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
       ),
       'email' => array(
         'description' => t('User email'),

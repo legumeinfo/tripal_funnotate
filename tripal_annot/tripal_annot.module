@@ -250,18 +250,18 @@ function validate_config()
 }
 # Add a file to the managed_file system. 
 # File must be in the public files area (function tripal_annot_get_file_dir)
-function annot_add_managed_file($name)
-{
-	global $user;
-	$file = new stdClass;
-	$file->uid = $user->uid;
-	$file->filename = $name;
-	$file->uri = "public://tripal/annot/$name";
-	$file->status = 0;
-	$file->filemime = 'text/plain';
-	file_save($file);
-	return $file->fid;
-}
+#function annot_add_managed_file($name)
+#{
+#	global $user;
+#	$file = new stdClass;
+#	$file->uid = $user->uid;
+#	$file->filename = $name;
+#	$file->uri = "public://tripal/annot/$name";
+#	$file->status = 0;
+#	$file->filemime = 'text/plain';
+#	file_save($file);
+#	return $file->fid;
+#}
 function tripal_annot_init()
 {
 

@@ -308,10 +308,9 @@ function annot_upload_form_submit($form, &$form_state)
 
 	$jid = db_insert('tripal_annot')->fields(array(
   		'jobkey' => $jobkey,
-		'ulfid' => 0,  # to be updated immediately
 		'ultype' => $type,
 		'ulbases' => $totlen,
-		'ulname' => $ul_origname,
+		'ul_origname' => $ul_origname,
 		'ulseqs' => $nseqs,
 		'email' => $email,
 	))->execute();
@@ -322,8 +321,7 @@ function annot_upload_form_submit($form, &$form_state)
 										# but this is more robust
 	$upload_new_path = tripal_annot_build_file_path($upload_new_name);
 	system("cp $cleaned_path $upload_new_path");
-	$new_fid = annot_add_managed_file($upload_new_name);
-	tripal_annot_update_field($jid,"ulfid",$new_fid);
+	tripal_annot_update_field($jid,"ulname",$upload_new_name);
 
 	#
 	# Now start the blast jobs (up to 4)
