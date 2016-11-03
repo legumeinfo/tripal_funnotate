@@ -8,19 +8,20 @@
 
 function annot_job_page($jobkey)
 {
-	$text = <<<END
+	$text = "";
+	$refresh_text = <<<END
  
 <script>
 var time = new Date().getTime();
 function refresh() 
 {
-	 if(new Date().getTime() - time >= 60000) 
+	 if(new Date().getTime() - time >= 20000) 
 		 window.location.reload(true);
 	 else 
-		 setTimeout(refresh, 60000);
+		 setTimeout(refresh, 20000);
 }
 
-setTimeout(refresh, 60000);
+setTimeout(refresh, 20000);
 </script>
 END;
 
@@ -280,6 +281,7 @@ END;
 	#
 	if ($numleft > 0) 
 	{
+		$text .= $refresh_text;
 		$text .= <<<END
 <pre>
 Job in progress: 
@@ -400,7 +402,7 @@ while ( ($line = fgets($fh)) != FALSE)
 			$linkouts = array();
 			foreach ($gfs as $i => $gf)
 			{
-				$linkout = "<a href=\"http://legumeinfo.org/chado_phylotree/phytozome_10_2.$gf\">$gf</a>";
+				$linkout = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\">$gf</a>";
 				if ($i % 4 == 3)
 				{
 					$linkout .= "<br>";
