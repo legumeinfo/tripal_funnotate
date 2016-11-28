@@ -110,7 +110,7 @@ function run_tripal_annot_post($jid)
 	$fh1 = fopen($ahrd_path,"r");
 	$fh2 = fopen($sum_path,"w");
 
-	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Description\tInterpro-ID\tGO Terms\tLIS Gene Family (HMMER)\n");
+	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Qual\tAHRD Descriptor\tInterpro-ID\tGO Terms\tLIS Gene Family (HMMER)\n");
 	$got_header == 0;
 	while ( ($line = fgets($fh1)) != FALSE)
 	{
@@ -122,9 +122,10 @@ function run_tripal_annot_post($jid)
 		$fields = preg_split("/\t/",$line);
 		$query = trim($fields[0]);
 		$hit = trim($fields[1]);
+		$qual = trim($fields[2]);
 		$desc = trim($fields[3]);
 		$ipr_query = find_matching_query($query,$alliprs); 
-		$newline = "$query\t$hit\t$desc\t";
+		$newline = "$query\t$hit\t$qual\t$desc\t";
 		if ($ipr_query != "")
 		{
 			$newline .= implode(",",$alliprs[$ipr_query]);

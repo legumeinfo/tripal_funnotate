@@ -57,7 +57,7 @@ END;
 
 	while (($line = fgets($fh)) !== false)
 	{
-		if (preg_match('/^>(\S+)/',$line,$matches))
+		if (preg_match('/^>(\S+)(\s.*)/',$line,$matches))
 		{
 			if ($curName != "")
 			{
@@ -70,7 +70,7 @@ END;
 					$cleanedSeq = clean_sequence($curSeq,$seqType,$numBadChars);
 					$totalBadChars += $numBadChars;
 					$badCharsBySeq[$curName] = $numBadChars;
-					write_cleaned_sequence($fhtemp,$curHeader,$cleanedSeq);
+					write_cleaned_sequence($fhtemp,$curName,$curHeader,$cleanedSeq);
 				}
 				else
 				{
@@ -78,7 +78,8 @@ END;
 				}
 			}
 			$curName = $matches[1];
-			$curHeader = $line;
+			$curHeader = preg_replace("/\s*$/","",$matches[2]); # rest of header, minus newlines, ^M, at end
+																# in fact we don't use header
 			$curSeq = "";
 		}
 		else
@@ -97,7 +98,7 @@ END;
 			$cleanedSeq = clean_sequence($curSeq,$seqType,$numBadChars);
 			$totalBadChars += $numBadChars;
 			$badCharsBySeq[$curName] = $numBadChars;
-			write_cleaned_sequence($fhtemp,$curHeader,$cleanedSeq);
+			write_cleaned_sequence($fhtemp,$curName,$curHeader,$cleanedSeq);
 		}
 		else
 		{
@@ -210,9 +211,10 @@ function clean_sequence($seq,$seqtype,&$badchars)
 	}
 	return $cleaned;
 }
-function write_cleaned_sequence($fh,$header,$seq)
+function write_cleaned_sequence($fh,$name,$header,$seq)
 {
-	fwrite($fh,$header);
+	$name = preg_replace("/;$/","",$name); # remove trailing semi if any since Blast will remove it
+	fwrite($fh,">$name\n"); # Just leave off the header...plays no role here
 	for ($i = 0; $i < strlen($seq); $i += 60)
 	{
 		fwrite($fh,substr($seq,$i,60)."\n");

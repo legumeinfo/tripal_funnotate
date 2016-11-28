@@ -83,7 +83,7 @@ Uploaded file: $ul_origname ($seqtypestr, $nseqs sequences, $totlen total $baset
 
 END;
 
-	# Report errors that we managed to catch in the cron functions...
+	# Report errors that we managed to catch in the cron functions...or user cancellation
 	if ($error != "")
 	{
 		$earray = explode(";",$error);
@@ -129,6 +129,10 @@ END;
 					$status .= "$dbname BLAST ERROR: $errmsg\n";
 					$error = "BLAST";
 				}	
+				else if ($jobstat == "Cancelled")
+				{
+					$status .= "$dbname BLAST cancelled\n";
+				}	
 				else
 				{
 					$status .= "$dbname BLAST done\n";
@@ -164,6 +168,10 @@ END;
 				$status .= "AHRD ERROR: $errmsg\n";
 				$error = "AHRD";
 			}	
+			else if ($jobstat == "Cancelled")
+			{
+				$status .= "AHRD cancelled\n";
+			}	
 			else
 			{
 					$status .= "AHRD done\n";
@@ -197,6 +205,10 @@ END;
 			{
 				$status .= "InterPro ERROR: $errmsg\n";
 				$error = "InterPro";
+			}	
+			else if ($jobstat == "Cancelled")
+			{
+				$status .= "Interpro cancelled\n";
 			}	
 			else
 			{
@@ -233,6 +245,10 @@ END;
 				{
 					$status .= "HMM ERROR: $errmsg\n";
 					$error = "HMM";
+				}	 
+				else if ($jobstat == "Cancelled")
+				{
+					$status .= "HMM cancelled\n";
 				}	
 				else
 				{
@@ -269,6 +285,10 @@ END;
 				$status .= "Postprocessing ERROR: $errmsg\n";
 				$error = "Postprocessing";
 			}	
+			else if ($jobstat == "Cancelled")
+			{
+				$status .= "Postprocessing cancelled\n";
+			}	
 			else
 			{
 					$status .= "Postprocessing done\n";
@@ -289,6 +309,7 @@ $status
 </pre>
 
 END;
+		$text .= drupal_render(drupal_get_form('annot_cancel_form', $jid));
 		return $text;
 	}
 	if ($error != "")
@@ -364,11 +385,15 @@ while ( ($line = fgets($fh)) != FALSE)
 {
 	$linenum++;
 	$fields = preg_split("/\t/",$line);
+	if ($linenum == 1)
+	{
+		$fields[2] = "AHRD&nbsp;Quality<br><a href='#quality' style='text-decoration:underline'>explain</a>";
+	}
 	if ($linenum > 1)
 	{
-		if (trim($fields[3]) != "")
+		if (trim($fields[4]) != "")
 		{
-			$iprs = explode(",",$fields[3]);
+			$iprs = explode(",",$fields[4]);
 			$linkouts = array();
 			foreach ($iprs as $i => $ipr)
 			{
@@ -379,11 +404,11 @@ while ( ($line = fgets($fh)) != FALSE)
 				}
 				array_push($linkouts,$linkout);
 			}
-			$fields[3] = implode("&nbsp;",$linkouts);
+			$fields[4] = implode("&nbsp;",$linkouts);
 		}
-		if (trim($fields[4]) != "")
+		if (trim($fields[5]) != "")
 		{
-			$gos = explode(",",$fields[4]);
+			$gos = explode(",",$fields[5]);
 			$linkouts = array();
 			foreach ($gos as $i => $go)
 			{
@@ -394,11 +419,11 @@ while ( ($line = fgets($fh)) != FALSE)
 				}
 				array_push($linkouts,$linkout);
 			}
-			$fields[4] = implode("&nbsp;",$linkouts);
+			$fields[5] = implode("&nbsp;",$linkouts);
 		}
-		if (trim($fields[5]) != "") # only one gene family so far but....
+		if (trim($fields[6]) != "") # only one gene family so far but....
 		{
-			$gfs = explode(",",$fields[5]);
+			$gfs = explode(",",$fields[6]);
 			$linkouts = array();
 			foreach ($gfs as $i => $gf)
 			{
@@ -409,13 +434,29 @@ while ( ($line = fgets($fh)) != FALSE)
 				}
 				array_push($linkouts,$linkout);
 			}
-			$fields[5] = implode("&nbsp;",$linkouts);
+			$fields[6] = implode("&nbsp;",$linkouts);
 		}
 	}
 	$row = "<tr><td>".implode("</td><td>",$fields)."</td></tr>\n";
 	$text .= $row;
 }
 $text .= "\n</table>\n";
+$text .= <<<END
+<a name="quality"></a>
+<b>AHRD Quality Scores:</b>
+<p>
+<pre>
+The AHRD quality-code consists of a three character string, where each 
+character is either "*" if the respective criteria is met or "_" otherwise. 
+The meaning by position is as follows:
+
+1	Bit score of the blast result is over 50 and e-value is better than e-10
+2	Overlap of the blast result is at least 60%
+3	Top token score of assigned descriptor is at least 0.5
+</pre>
+For more about the AHRD algorithm, see
+<a href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD Documentation</a>.
+END;
 
 	return $text;
 }
@@ -442,7 +483,7 @@ function annot_calc_stats(&$stats,$jarr,$sumname)
 			break; # empty line, end of file presumably
 		}
 		$f = preg_split('/\t/',$line);
-		if ( count($f) != 6) 
+		if ( count($f) != 7) 
 		{
 			$nf = count($f);
 			$ret = "<p><br><span style='color:red'>The Summary file does not have the right format!</span><br>Bad line:<br>$line<br>Num fields:$nf<p>";
@@ -469,4 +510,37 @@ function annot_calc_stats(&$stats,$jarr,$sumname)
 function tripal_annot_file_url($fname)
 {
 	return file_create_url("public://tripal/annot/$fname");
+}
+function annot_cancel_form($form,&$form_state)
+{
+	$jid = $form_state['build_info']['args'][0];
+
+    $form = array();
+
+	$form['jid'] = array(
+		'#type' => 'hidden',
+		'#value' => $jid,
+	);
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Cancel Annotation',
+	  );
+
+	return $form;
+}
+function annot_cancel_form_submit($form, &$form_state)
+{
+	global $user;
+
+  	$jid = $form_state['values']['jid'];
+
+	$result = db_query("select * from tripal_annot where jid='$jid'");
+	if ($result->rowCount() == 0)
+	{
+		$text = "<p>Job <tt>$jid</tt> was not found.<p>";
+		return $text;
+	}
+	$jarr = $result->fetchAssoc();
+	$status = $jarr["status"];
+	tripal_annot_update_field($jid,"status","Cancelled");
 }
