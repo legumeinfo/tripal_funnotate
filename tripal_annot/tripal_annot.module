@@ -12,6 +12,11 @@ require_once("includes/Spyc.php");
 #
 #######################################################################################
 
+#
+# TODO: change hard coding of summary table column numbers (post.inc, jobtrack.inc)
+# change hard coding of URLs
+#
+
 function tripal_annot_menu() 
 {
 	$items = array();

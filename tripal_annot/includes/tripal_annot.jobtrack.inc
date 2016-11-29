@@ -6,6 +6,10 @@
 #
 #######################################################################################
 
+#
+# TODO: reduce code duplication for job status checking, if possible
+#
+
 function annot_job_page($jobkey)
 {
 	$text = "";
@@ -33,6 +37,7 @@ END;
 	}
 
 	$jarr = $result->fetchAssoc();
+	$jid = $jarr["jid"];
 	$error = $jarr["status"];
 	$email = $jarr["email"];
 	$ul_origname = $jarr["ul_origname"];
@@ -82,8 +87,11 @@ END;
 Uploaded file: $ul_origname ($seqtypestr, $nseqs sequences, $totlen total $basetype)
 
 END;
-
-	# Report errors that we managed to catch in the cron functions...or user cancellation
+	if ($error == "Cancelled")
+	{
+		$text .= "<p><p>Job was cancelled by user.<p>";
+		return $text;
+	}
 	if ($error != "")
 	{
 		$earray = explode(";",$error);
@@ -108,7 +116,12 @@ END;
 			return $text;
 		}
 		$r = $result->fetchObject();			
-		if (NULL == $r->start_time)
+		$jobstat = $r->status;
+		if ($jobstat == "Cancelled")
+		{
+			$status .= "$dbname BLAST cancelled\n";
+		}	
+		else if (NULL == $r->start_time)
 		{
 			$status .= "$dbname BLAST queued\n";
 			$numleft++;
@@ -122,16 +135,11 @@ END;
 			}
 			else
 			{
-				$jobstat = $r->status;
 				$errmsg = $r->error_msg;
 				if ($jobstat == "Error" || $errmsg != "")
 				{
 					$status .= "$dbname BLAST ERROR: $errmsg\n";
 					$error = "BLAST";
-				}	
-				else if ($jobstat == "Cancelled")
-				{
-					$status .= "$dbname BLAST cancelled\n";
 				}	
 				else
 				{
@@ -147,7 +155,12 @@ END;
 		return $text;
 	}
 	$r = $result->fetchObject();			
-	if (NULL == $r->start_time)
+	$jobstat = $r->status;
+	if ($jobstat == "Cancelled")
+	{
+		$status .= "AHRD cancelled\n";
+	}	
+	else if (NULL == $r->start_time)
 	{
 		$status .= "AHRD queued\n";
 		$numleft++;
@@ -161,16 +174,11 @@ END;
 		}
 		else
 		{
-			$jobstat = $r->status;
 			$errmsg = $r->error_msg;
 			if ($jobstat == "Error" || $errmsg != "")
 			{
 				$status .= "AHRD ERROR: $errmsg\n";
 				$error = "AHRD";
-			}	
-			else if ($jobstat == "Cancelled")
-			{
-				$status .= "AHRD cancelled\n";
 			}	
 			else
 			{
@@ -185,7 +193,12 @@ END;
 		return $text;
 	}
 	$r = $result->fetchObject();			
-	if (NULL == $r->start_time)
+	$jobstat = $r->status;
+	if ($jobstat == "Cancelled")
+	{
+		$status .= "Interpro cancelled\n";
+	}	
+	else if (NULL == $r->start_time)
 	{
 		$status .= "InterPro queued\n";
 		$numleft++;
@@ -199,16 +212,11 @@ END;
 		}
 		else
 		{
-			$jobstat = $r->status;
 			$errmsg = $r->error_msg;
 			if ($jobstat == "Error" || $errmsg != "")
 			{
 				$status .= "InterPro ERROR: $errmsg\n";
 				$error = "InterPro";
-			}	
-			else if ($jobstat == "Cancelled")
-			{
-				$status .= "Interpro cancelled\n";
 			}	
 			else
 			{
@@ -225,7 +233,12 @@ END;
 			return $text;
 		}
 		$r = $result->fetchObject();			
-		if (NULL == $r->start_time)
+		$jobstat = $r->status;
+		if ($jobstat == "Cancelled")
+		{
+			$status .= "HMM cancelled\n";
+		}	
+		else if (NULL == $r->start_time)
 		{
 			$status .= "HMM queued\n";
 			$numleft++;
@@ -239,17 +252,12 @@ END;
 			}
 			else
 			{
-				$jobstat = $r->status;
 				$errmsg = $r->error_msg;
 				if ($jobstat == "Error" || $errmsg != "")
 				{
 					$status .= "HMM ERROR: $errmsg\n";
 					$error = "HMM";
 				}	 
-				else if ($jobstat == "Cancelled")
-				{
-					$status .= "HMM cancelled\n";
-				}	
 				else
 				{
 						$status .= "HMM done\n";
@@ -264,7 +272,12 @@ END;
 		return $text;
 	}
 	$r = $result->fetchObject();			
-	if (NULL == $r->start_time)
+	$jobstat = $r->status;
+	if ($jobstat == "Cancelled")
+	{
+		$status .= "Postprocessing cancelled\n";
+	}	
+	else if (NULL == $r->start_time)
 	{
 		$status .= "Postprocessing queued\n";
 		$numleft++;
@@ -278,16 +291,11 @@ END;
 		}
 		else
 		{
-			$jobstat = $r->status;
 			$errmsg = $r->error_msg;
 			if ($jobstat == "Error" || $errmsg != "")
 			{
 				$status .= "Postprocessing ERROR: $errmsg\n";
 				$error = "Postprocessing";
-			}	
-			else if ($jobstat == "Cancelled")
-			{
-				$status .= "Postprocessing cancelled\n";
 			}	
 			else
 			{
@@ -309,7 +317,7 @@ $status
 </pre>
 
 END;
-		$text .= drupal_render(drupal_get_form('annot_cancel_form', $jid));
+		$text .= drupal_render(drupal_get_form('annot_cancel_form', $jid, $jobkey));
 		return $text;
 	}
 	if ($error != "")
@@ -514,12 +522,17 @@ function tripal_annot_file_url($fname)
 function annot_cancel_form($form,&$form_state)
 {
 	$jid = $form_state['build_info']['args'][0];
+	$jobkey = $form_state['build_info']['args'][1];
 
     $form = array();
 
 	$form['jid'] = array(
 		'#type' => 'hidden',
 		'#value' => $jid,
+	);
+	$form['jobkey'] = array(
+		'#type' => 'hidden',
+		'#value' => $jobkey,
 	);
 	$form['submit'] = array(
 		'#type' => 'submit',
@@ -531,10 +544,10 @@ function annot_cancel_form($form,&$form_state)
 function annot_cancel_form_submit($form, &$form_state)
 {
 	global $user;
-
   	$jid = $form_state['values']['jid'];
+  	$jobkey = $form_state['values']['jobkey'];
 
-	$result = db_query("select * from tripal_annot where jid='$jid'");
+	$result = db_query("select status, joblist from tripal_annot where jid='$jid'");
 	if ($result->rowCount() == 0)
 	{
 		$text = "<p>Job <tt>$jid</tt> was not found.<p>";
@@ -542,5 +555,15 @@ function annot_cancel_form_submit($form, &$form_state)
 	}
 	$jarr = $result->fetchAssoc();
 	$status = $jarr["status"];
+	$joblist = $jarr["joblist"];
+
+	$jobs = array_reverse(explode(",",$joblist));
+	foreach ($jobs as $jobstr)
+	{
+		$jobid = preg_replace("/:.*/","",$jobstr); # some of them are jobid:number
+		tripal_cancel_job($jobid,FALSE);	
+	}
 	tripal_annot_update_field($jid,"status","Cancelled");
+
+	drupal_goto("/annot/job/$jobkey");
 }

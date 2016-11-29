@@ -6,6 +6,10 @@
 #
 ##################################################################################
 
+#
+# TODO: column #'s of summary table are hard coded here and in jobtrack.inc
+#
+
 function run_tripal_annot_post($jid)
 {
 	$res = db_query("select * from tripal_annot where jid=$jid");
