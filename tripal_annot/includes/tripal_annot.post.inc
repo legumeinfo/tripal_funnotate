@@ -36,7 +36,7 @@ function run_tripal_annot_post($jid)
 	{
 		$fields = preg_split("/\t/",$line);
 		$query = $fields[0];
-		if ($seqtype == "n")
+		if (0) #$seqtype == "n") # no longer needed since we use the translated query
 		{
 			# IPR adds _NN to indicate the ORF number; must remove
 			$query = preg_replace('/_\d+$/','',$query);

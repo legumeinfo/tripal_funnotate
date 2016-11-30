@@ -132,6 +132,21 @@ function annot_config_form($form_state)
     '#title' => t('HMMER parameters (optional)'),
     '#default_value' => variable_get('annot_hmmparam', ''),
   );
+  $form['annot_escanpath']= array(
+    '#type' => 'textfield',
+    '#title' => t('Path to ESTScan executable'),
+    '#default_value' => variable_get('annot_escanpath', ''),
+  );
+  $form['annot_smat']= array(
+    '#type' => 'textfield',
+    '#title' => t('Path to ESTScan matrix (smat file)'),
+    '#default_value' => variable_get('annot_smat', ''),
+  );
+  $form['annot_escanparam']= array(
+    '#type' => 'textfield',
+    '#title' => t('ESTScan parameters (optional)'),
+    '#default_value' => variable_get('annot_escanparam', ''),
+  );
 
 $form['submit'] = array(
     '#type' => 'submit',
@@ -437,6 +452,51 @@ function annot_config_form_validate($form, &$form_state)
 	{
 		$valid = 0;
 		form_set_error('annot_hmmdb', t('Please enter a valid path to the HMMER database hmm file'));
+	}
+	$path = $form_state['values']['annot_escanpath'];
+	if(!empty($path)) 
+	{
+		if (is_dir($path))
+		{
+			$path .= '/estscan';
+		}
+		if(file_exists($path) ) 
+		{
+			variable_set('annot_escanpath', $path);
+		}
+		else 
+		{
+			$valid = 0;
+			form_set_error('annot_escanpath', t('$path does not exist! Please enter a valid path for estscan'));
+		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_escanpath', t('Please enter a valid path for estscan'));
+	}
+	$path = $form_state['values']['annot_smat'];
+	if(!empty($path)) 
+	{
+		if(file_exists($path) ) 
+		{
+			variable_set('annot_smat', $form_state['values']['annot_smat']);
+		}
+		else 
+		{
+			$valid = 0;
+			form_set_error('annot_smat', t('$path does not exist! Please enter a valid .smat file'));
+		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_smat', t('Please enter a valid .smat file'));
+	}
+	$params = $form_state['values']['annot_escanparam'];
+	if(!empty($params)) 
+	{
+		variable_set('annot_escanparam', $form_state['values']['annot_escanparam']);
 	}
 
 	$maxsize = $form_state['values']['annot_upload_sizeMB'];

@@ -40,6 +40,11 @@ function run_tripal_annot_ahrd($dblist, $jid)
 	}	
 	$r = $res->fetchObject();			
 	$upload_fpath = tripal_annot_build_file_path($r->ulname);
+	if ($r->ultype == "n")
+	{
+		$upload_path .= ".trans";
+	}
+	
 	$jobkey = $r->jobkey;
 
 	$yaml_obj["proteins_fasta"] = $upload_fpath;
@@ -47,7 +52,7 @@ function run_tripal_annot_ahrd($dblist, $jid)
 	$ahrd_outpath = tripal_annot_build_file_path($ahrd_outname);
 	$yaml_obj["output"] = $ahrd_outpath;
 
-	if ($r->ultype == "n")
+	if (0) # $r->ultype == "n") # now we're using a translated file rather than blastx
 	{
 		$yaml_obj["token_score_bit_score_weight"] = 0.6;
 		$yaml_obj["token_score_database_score_weight"] = 0.4;
@@ -131,15 +136,13 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 #
 function run_tripal_annot_ipr($cmd, $outpath, $jid)
 {
-	# We need to know if it's a nucleotide seq since IPR appends to the name
-	$res = db_query("select ultype,jobkey from tripal_annot where jid=$jid");
+	$res = db_query("select jobkey from tripal_annot where jid=$jid");
 	if (!$res)
 	{
 		tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
 		return;
 	}	
 	$r = $res->fetchObject();			
-	$seqtype = $r->ultype;	
 	$jobkey = $r->jobkey;	
 
 	$propsdir = variable_get("annot_iprcfgdir");
@@ -175,7 +178,7 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 
 function run_tripal_annot_hmm($cmd, $outpath, $jid)
 {
-	$res = db_query("select ultype,jobkey from tripal_annot where jid=$jid");
+	$res = db_query("select jobkey from tripal_annot where jid=$jid");
 	if (!$res)
 	{
 		tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");

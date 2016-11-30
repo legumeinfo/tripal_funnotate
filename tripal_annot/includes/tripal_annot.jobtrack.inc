@@ -41,6 +41,7 @@ END;
 	$error = $jarr["status"];
 	$email = $jarr["email"];
 	$ul_origname = $jarr["ul_origname"];
+	$ulname = $jarr["ulname"];
 	$ahrdname = $jarr["ahrdname"];
 	$sumname = $jarr["sumname"];
 	$iprname = $jarr["iprname"];
@@ -49,9 +50,15 @@ END;
 	$nseqs = $jarr["ulseqs"];
 	$totlen = $jarr["ulbases"];
 	$seqtype = $jarr["ultype"];
-	$basetype = ($jarr["ultype"] == "n" ? "basepairs" : "proteins");
+	$basetype = ($seqtype == "n" ? "basepairs" : "proteins");
 
 	$joblist = explode(",",$jarr["joblist"]);
+
+	$escan_jobid = 0;
+	if ($seqtype == "n")
+	{
+		$escan_jobid = array_unshift($joblist); 
+	}
 	$post_jobid = array_pop($joblist);
 	if (!is_numeric($post_jobid))
 	{
@@ -103,6 +110,47 @@ END;
 
 	$status_str = ""; 
 	$numleft = 0;
+	if ($seqtype == "n")
+	{
+		$result = db_query("select * from tripal_jobs where job_id=$escan_jobid"); 
+		if (!$result)
+		{
+			$text .= "<p>Job <tt>$escan_jobid</tt> (ESTScan) was not found!<p>An error occurred.";
+			return $text;
+		}
+		$r = $result->fetchObject();			
+		$jobstat = $r->status;
+		if ($jobstat == "Cancelled")
+		{
+			$status .= "ESTScan cancelled\n";
+		}	
+		else if (NULL == $r->start_time)
+		{
+			$status .= "ESTScan queued\n";
+			$numleft++;
+		}
+		else
+		{
+			if (NULL == $r->end_time)
+			{
+				$status .= "ESTScan running\n";
+				$numleft++;
+			}
+			else
+			{
+				$errmsg = $r->error_msg;
+				if ($jobstat == "Error" || $errmsg != "")
+				{
+					$status .= "ESTScan ERROR: $errmsg\n";
+					$error = "ESTScan";
+				}	
+				else
+				{
+						$status .= "ESTScan done\n";
+				}
+			}
+		}
+	}
 	foreach ($joblist as $jobstr)
 	{
 		$jnarr = explode(":",$jobstr);
@@ -350,6 +398,7 @@ END;
 	$url_ipr = tripal_annot_file_url($iprname);
 	$url_hmm = tripal_annot_file_url($hmmname);
 	$url_sum = tripal_annot_file_url($sumname);
+	$url_escan = tripal_annot_file_url("$ulname.trans");
 
 	$stats = array();
 	$err = annot_calc_stats($stats, $jarr, $sumname);
@@ -372,6 +421,13 @@ END;
 		<td>$gohits ($pctgo%)</td>
 	</tr>
 </table>
+END;
+if ($seqtype == "n")
+{
+	$text .= " <p> <a href='$url_escan' style='text-decoration:underline'>ESTScan output</a>\n";
+}
+
+	$text .= <<<END
 <p>
 <a href="$url_blast" style="text-decoration:underline">BLAST output files</a> (tar/gzip archive)
 <br>
