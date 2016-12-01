@@ -42,7 +42,7 @@ function run_tripal_annot_ahrd($dblist, $jid)
 	$upload_fpath = tripal_annot_build_file_path($r->ulname);
 	if ($r->ultype == "n")
 	{
-		$upload_path .= ".trans";
+		$upload_fpath .= ".trans";
 	}
 	
 	$jobkey = $r->jobkey;
@@ -99,8 +99,7 @@ function run_tripal_annot_ahrd($dblist, $jid)
 	$java_path = variable_get("annot_java_path");
 	$ahrd_path = variable_get("annot_ahrd_path");
 	$ahrd_cmd = "$java_path -Xmx2g -jar $ahrd_path /tmp/yamldump.txt";
-	file_put_contents("/tmp/cmd.txt",$ahrd_cmd);
-	system("chmod 777 /tmp/cmd.txt");	
+	file_put_contents("/tmp/ahrd.txt",$ahrd_cmd);
 	system($ahrd_cmd);	
 
 	if (!file_exists($outpath))
@@ -136,6 +135,7 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 #
 function run_tripal_annot_ipr($cmd, $outpath, $jid)
 {
+file_put_contents("/tmp/ipr.txt",$cmd);
 	$res = db_query("select jobkey from tripal_annot where jid=$jid");
 	if (!$res)
 	{

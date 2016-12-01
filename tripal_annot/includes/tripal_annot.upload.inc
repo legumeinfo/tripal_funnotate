@@ -319,6 +319,7 @@ function annot_upload_form_submit($form, &$form_state)
 	$upload_new_name = "upload_$jobkey";  # can't use the jid because then after uninstall/reinstall
 	$upload_new_path = tripal_annot_build_file_path($upload_new_name);
 	system("cp $cleaned_path $upload_new_path");
+	system("chmod -w $upload_new_path"); # so can't accidentally delete during debugging
 	tripal_annot_update_field($jid,"ulname",$upload_new_name);
 
 	$translated_path = $upload_new_path; 
@@ -525,8 +526,9 @@ function start_blast_job($jid, $num, $query, $type)
 
 	if (!file_exists($query))
 	{
-		drupal_set_message("Can't find blast query $query!");
-		return 0;
+		# Can't check this now since ESTScan may have to create the file first
+		#drupal_set_message("Can't find blast query $query!");
+		#return 0;
 	}
 
 	$blastpath = variable_get("annot_blast_path","");
@@ -597,6 +599,7 @@ function tripal_annot_build_file_path($filename)
 }
 function run_tripal_annot_escan($jid)
 {
+file_put_contents("/tmp/escan.txt","");
 	$escanpath = variable_get("annot_escanpath");
 	if (!file_exists($escanpath))
 	{
@@ -619,11 +622,13 @@ function run_tripal_annot_escan($jid)
 	}	
 	$r = $res->fetchObject();			
 	$upload_fpath = tripal_annot_build_file_path($r->ulname);
+file_put_contents("/tmp/escan.txt","$upload_fpath\n",FILE_APPEND);
 	$jobkey = $r->jobkey;
 
-	$outpath = "$upload_path.trans";
+	$outpath = "$upload_fpath.trans";
 
-	$cmd = "$escanpath -M $smatpath -o /tmp/escan.out -t $upload_path $outpath";
+	$cmd = "$escanpath -M $smatpath -o /tmp/escan.out -t $outpath $upload_fpath";
+file_put_contents("/tmp/escan.txt","$cmd\n",FILE_APPEND);
 	system($cmd);
 
 	if (!file_exists($outpath) || 0==filesize($outpath))

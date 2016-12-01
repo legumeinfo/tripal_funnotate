@@ -82,15 +82,29 @@ function annot_main_page()
 
 	$form_state = array();
 	$text .= <<<END
-Upload a file of protein or nucleotide sequences and have them annotated using InterProScan plus three species databases (Soy, Medicago, Arabidopsis). 
+Upload a file of protein or nucleotide sequences and have them annotated  using 
+LIS legume resources<br>
+ (see <a href="pipeline">pipeline description</a> below).
 <p>
-The annotation uses BLAST for alignment, followed by semantic processing of the descriptors using 
-<a href="https://www.cropbio.uni-bonn.de/tools-and-databases-en/ahrd-en">AHRD</a>. 
-<br>
-GO assignments are also provided. 
 END;
 	$text .= drupal_render(drupal_get_form('annot_start_form')); 
 	$text .= "<hr>";
+
+$text .= <<<END
+<pre>
+Annotation pipeline:
+
+1. ESTScan if needed (for nucleotide uploads)
+2. BLAST alignment to reference gene databases (Soy, Medicago, Arabidopsis)
+3. InterProScan (methods: TIGRFAM,ProDom ,SMART ,ProSiteProfiles ,ProSitePatterns ,SUPERFAMILY ,PANTHER ,Gene3D ,PIRSF ,Pfam ,Coils) 
+4. Assignment of <a href="http://www.legumeinfo.org/search/phylotree">phytozome gene family</a>
+5. Best-hit extraction by <a href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD</a> (Automated Human Readable Descriptions)
+
+Summary results provided including: GO, InterPro ID, Gene family, and AHRD descriptor.
+Complete outputs of each analysis are also provided. 
+</pre>
+END;
+
 	return $text;
 }
 function annot_file_element_process($element, &$form_state, $form) 

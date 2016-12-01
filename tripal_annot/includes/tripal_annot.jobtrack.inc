@@ -53,11 +53,10 @@ END;
 	$basetype = ($seqtype == "n" ? "basepairs" : "proteins");
 
 	$joblist = explode(",",$jarr["joblist"]);
-
 	$escan_jobid = 0;
 	if ($seqtype == "n")
 	{
-		$escan_jobid = array_unshift($joblist); 
+		$escan_jobid = array_shift($joblist); 
 	}
 	$post_jobid = array_pop($joblist);
 	if (!is_numeric($post_jobid))
@@ -66,14 +65,11 @@ END;
 		return $text;
 	}
 	$hmm_jobid = 0;
-	if ($seqtype == "p")
+	$hmm_jobid = array_pop($joblist);
+	if (!is_numeric($hmm_jobid))
 	{
-		$hmm_jobid = array_pop($joblist);
-		if (!is_numeric($hmm_jobid))
-		{
-			$text = "Unable to determine HMM job!<p>Error occurred.<p>";
-			return $text;
-		}
+		$text = "Unable to determine HMM job!<p>Error occurred.<p>";
+		return $text;
 	}
 	$ipr_jobid = array_pop($joblist);
 	if (!is_numeric($ipr_jobid))
