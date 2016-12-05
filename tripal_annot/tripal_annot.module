@@ -84,21 +84,22 @@ function annot_main_page()
 	$text .= <<<END
 Upload a file of protein or nucleotide sequences and have them annotated  using 
 LIS legume resources<br>
- (see <a href="pipeline">pipeline description</a> below).
+ (see <a href="#pipeline">pipeline description</a> below).
 <p>
 END;
 	$text .= drupal_render(drupal_get_form('annot_start_form')); 
 	$text .= "<hr>";
 
 $text .= <<<END
+<a name="pipeline"></a>
 <pre>
 Annotation pipeline:
 
-1. ESTScan if needed (for nucleotide uploads)
-2. BLAST alignment to reference gene databases (Soy, Medicago, Arabidopsis)
-3. InterProScan (methods: TIGRFAM,ProDom ,SMART ,ProSiteProfiles ,ProSitePatterns ,SUPERFAMILY ,PANTHER ,Gene3D ,PIRSF ,Pfam ,Coils) 
-4. Assignment of <a href="http://www.legumeinfo.org/search/phylotree">phytozome gene family</a>
-5. Best-hit extraction by <a href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD</a> (Automated Human Readable Descriptions)
+1. <a  style="text-decoration:underline" href="http://estscan.sourceforge.net">ESTScan</a> if needed (to translate nucleotide uploads)
+2. <a  style="text-decoration:underline" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi">BLAST</a> alignment to reference gene databases (Soy, Medicago, Arabidopsis)
+3. <a  style="text-decoration:underline" href="http://www.ebi.ac.uk/interpro/search/sequence-search">InterProScan</a> (methods: TIGRFAM,ProDom ,SMART ,ProSiteProfiles ,ProSitePatterns ,SUPERFAMILY ,PANTHER ,Gene3D ,PIRSF ,Pfam ,Coils) 
+4. Assignment of <a style="text-decoration:underline" href="http://www.legumeinfo.org/search/phylotree">phytozome gene family</a> (using <a  style="text-decoration:underline" href="http://hmmer.org/">HMMer</a>)
+5. Best-hit extraction by <a  style="text-decoration:underline" href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD</a> (Automated Human Readable Descriptions)
 
 Summary results provided including: GO, InterPro ID, Gene family, and AHRD descriptor.
 Complete outputs of each analysis are also provided. 

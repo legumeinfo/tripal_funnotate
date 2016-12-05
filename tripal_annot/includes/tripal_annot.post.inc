@@ -114,7 +114,7 @@ function run_tripal_annot_post($jid)
 	$fh1 = fopen($ahrd_path,"r");
 	$fh2 = fopen($sum_path,"w");
 
-	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Qual\tAHRD Descriptor\tInterpro-ID\tGO Terms\tLIS Gene Family (HMMER)\n");
+	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Qual\tAHRD Descriptor\tInterpro-ID\tGO Terms\tGene Family\n");
 	$got_header == 0;
 	while ( ($line = fgets($fh1)) != FALSE)
 	{

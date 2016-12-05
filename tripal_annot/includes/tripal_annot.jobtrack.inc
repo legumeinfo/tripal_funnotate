@@ -434,7 +434,7 @@ if ($seqtype == "n")
 <a href="$url_ahrd" style="text-decoration:underline">AHRD output</a> (txt file,tabular)
 <p>
 Summary Table 
-(<a href="$url_sum" style="text-decoration:underline">download</a>) :
+(right-click <a href="$url_sum" style="text-decoration:underline">download</a>) :
 <table>
 END;
 
