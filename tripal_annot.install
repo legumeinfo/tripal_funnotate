@@ -1,0 +1,125 @@
+<?php
+
+function tripal_annot_install()
+{
+  #tripal_create_moddir('tripal_annot');
+
+
+   #tripal_example_module_add_example_mview();
+
+   #tripal_add_cvterms('unique_term_name','Term Description');
+  # tripal_create_files_dir('tripal_annot');
+
+}
+function tripal_annot_schema()
+{
+  $schema['tripal_annot'] = array(
+    'description' => t('Table to support annotation jobs'),
+    'fields' => array(
+      'jid' => array(
+        'description' => t('Job ID.'),
+        'type' => 'serial',
+        'unsigned' => true,
+        'not null' => true,
+      ),
+      'jobkey' => array(
+        'description' => t('Semi-secure key to access job output '),
+        'type' => 'varchar',
+        'length' => 10,
+		'default' => '',
+      ),
+      'ulname' => array(
+        'description' => t('Uploaded file name, after cleaning'), 
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'ultype' => array(
+        'description' => t('Type of the uploaded sequence (n or p). '),
+        'type' => 'varchar',
+        'length' => 1,
+		'default' => '',
+      ),
+      'ulbases' => array(
+        'description' => t('Uploaded sequence total basepairs'),
+        'type' => 'int',
+        'unsigned' => true,
+		'default' => 0,
+      ),
+      'ulseqs' => array(
+        'description' => t('Num uploaded sequences '),
+        'type' => 'int',
+        'unsigned' => true,
+		'default' => 0,
+      ),
+      'ul_origname' => array(
+        'description' => t('Original uploaded file name '),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'blastname' => array(
+        'description' => t('Blast output files gzipped'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'iprname' => array(
+        'description' => t('InterPro output file'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'hmmname' => array(
+        'description' => t('HMM output file'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'ahrdname' => array(
+        'description' => t('AHRD output file'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'sumname' => array(
+        'description' => t('Summary output file'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'email' => array(
+        'description' => t('User email'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+      'status' => array(
+        'description' => t('Status of the job (only used if error)'),
+        'type' => 'varchar',
+        'length' => 5000,
+		'default' => '',
+      ),
+      'joblist' => array(
+        'description' => t('List of running jobs'),
+        'type' => 'varchar',
+        'length' => 255,
+		'default' => '',
+      ),
+   ), 
+    'primary key' => array('jid'),
+  );
+
+  return $schema;
+}
+
+function tripal_annot_uninstall()
+{
+
+}
+function tripal_annot_requirements($phase) 
+{
+   $requirements = array();
+   return $requirements;
+}
+

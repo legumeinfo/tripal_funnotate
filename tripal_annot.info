@@ -1,0 +1,9 @@
+name = Annotation Module  
+description = Annotation of user-uploaded transcript/peptide data
+core = 7.x
+project = tripal_annot
+package = Tripal Extensions
+dependencies[] = tripal_core
+dependencies[] = tripal_feature
+dependencies[] = tripal_analysis
+configure = admin/tripal/extension/tripal_annot
