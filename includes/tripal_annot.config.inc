@@ -49,9 +49,9 @@ END;
 function annot_config_form($form_state)
 {
     $form = array();
-	if (NULL == variable_get('annot_upload_sizeMB'))
+	if (NULL == variable_get('annot_upload_sizeKB'))
 	{
-		variable_set('annot_upload_sizeMB',2);
+		variable_set('annot_upload_sizeKB',2);
 	}
 
   $form['annot_blast_path']= array(
@@ -69,13 +69,13 @@ function annot_config_form($form_state)
     '#title' => t('Path to AHRD jar file'),
     '#default_value' => variable_get('annot_ahrd_path', ''),
   );
-  $form['annot_upload_sizeMB']= array(
+  $form['annot_upload_sizeKB']= array(
     '#type' => 'textfield',
-    '#title' => t('Max upload size (MB)'),
+    '#title' => t('Max upload size (KB)'),
 	'#number_type' => 'integer',
 	'#size' => 5,
 	'#element_validate' => array('element_validate_integer_positive'), 
-    '#default_value' => variable_get('annot_upload_sizeMB', ''),
+    '#default_value' => variable_get('annot_upload_sizeKB', ''),
   );
   $form['annot_db1']= array(
     '#type' => 'textfield',
@@ -499,11 +499,16 @@ function annot_config_form_validate($form, &$form_state)
 		variable_set('annot_escanparam', $form_state['values']['annot_escanparam']);
 	}
 
-	$maxsize = $form_state['values']['annot_upload_sizeMB'];
-	$sysmax = (file_upload_max_size()/1024)/1024;
+	$maxsize = $form_state['values']['annot_upload_sizeKB'];
+	$sysmax = (file_upload_max_size()/1024);
 	if ($maxsize > $sysmax)
 	{
-		form_set_error('annot_upload_sizeMB',t("upload size is larger than server maximum $sysmax MB"));
+		form_set_error('annot_upload_sizeKB',t("upload size is larger than server maximum $sysmax KB"));
+		$valid = 0;
+	}
+	else
+	{
+		variable_set('annot_upload_sizeKB', $form_state['values']['annot_upload_sizeKB']);
 	}
 	if ($valid == 0)
 	{
