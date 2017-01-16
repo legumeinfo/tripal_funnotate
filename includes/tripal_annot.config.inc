@@ -48,6 +48,13 @@ END;
 }
 function annot_config_form($form_state)
 {
+$linkpath = tripal_get_files_dir()."/annot_link";
+$linktarg = "/tmp/annot_files";
+#mkdir($linktarg,755);
+#system("ln -s $linktarg $linkpath");
+#system("chmod 755 $linkpath");
+#rmdir($linktarg);
+
     $form = array();
 	if (NULL == variable_get('annot_upload_sizeKB'))
 	{
@@ -57,7 +64,31 @@ function annot_config_form($form_state)
 	{
 		variable_set('annot_use_email',0);
 	}
+	if (NULL == variable_get('annot_files_dir'))
+	{
+		variable_set('annot_files_dir',"annot");
+	}
+	$files_topdir = tripal_get_files_dir();
 
+  $form['annot_upload_sizeKB']= array(
+    '#type' => 'textfield',
+    '#title' => t('Max upload size (KB)'),
+	'#number_type' => 'integer',
+	'#size' => 5,
+	'#element_validate' => array('element_validate_integer_positive'), 
+    '#default_value' => variable_get('annot_upload_sizeKB', ''),
+  );
+  $form['annot_use_email']= array(
+	'#type' => 'radios',
+    '#title' => t('Enable email notification'),
+    '#options' => array(1 => t("yes"), 0 => t("no")),
+    '#default_value' => variable_get('annot_use_email', 0)
+  );
+  $form['annot_files_dir']= array(
+    '#type' => 'textfield',
+    '#title' => t('Directory (or link) name for output files under '.$files_topdir),
+    '#default_value' => variable_get('annot_files_dir', ''),
+  );
   $form['annot_blast_path']= array(
     '#type' => 'textfield',
     '#title' => t('Directory of the BLAST+ programs'),
@@ -72,20 +103,6 @@ function annot_config_form($form_state)
     '#type' => 'textfield',
     '#title' => t('Path to AHRD jar file'),
     '#default_value' => variable_get('annot_ahrd_path', ''),
-  );
-  $form['annot_upload_sizeKB']= array(
-    '#type' => 'textfield',
-    '#title' => t('Max upload size (KB)'),
-	'#number_type' => 'integer',
-	'#size' => 5,
-	'#element_validate' => array('element_validate_integer_positive'), 
-    '#default_value' => variable_get('annot_upload_sizeKB', ''),
-  );
-  $form['annot_use_email']= array(
-	'#type' => 'radios',
-    '#title' => t('Enable email notification'),
-    '#options' => array(1 => t("yes"), 0 => t("no")),
-    '#default_value' => variable_get('annot_use_email', 0)
   );
   $form['annot_db1']= array(
     '#type' => 'textfield',
@@ -169,6 +186,51 @@ $form['submit'] = array(
 function annot_config_form_validate($form, &$form_state) 
 {
 	$valid = 1;
+	$dir = $form_state['values']['annot_files_dir'];
+	if(!empty($dir)) 
+	{
+		if (preg_match("/^\w+$/",$dir))
+		{
+			$fulldir = DRUPAL_ROOT."/".tripal_get_files_dir()."/$dir";
+			if (is_dir($fulldir))
+			{
+				variable_set('annot_files_dir', $form_state['values']['annot_files_dir']);
+			}
+			else
+			{
+				# Check whether this already exists as a broken link that we need to fix
+				if (is_link($fulldir))
+				{
+					$realpath = readlink($fulldir);
+					mkdir($realpath,755);
+					if (is_dir($fulldir))
+					{
+						variable_set('annot_files_dir', $form_state['values']['annot_files_dir']);
+					}
+					else
+					{
+						$valid = 0;
+						form_set_error('annot_files_dir', t('Files directory $fulldir is a broken link which could not be fixed'));
+					}
+				}
+				else
+				{
+					$valid = 0;
+					form_set_error('annot_files_dir', t('Files directory $fulldir could not be created'));
+				}
+			}
+		}
+		else 
+		{
+			$valid = 0;
+			form_set_error('annot_files_dir', t('Files directory can contain only letters, numbers and underscores'));
+		}
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_files_dir', t('Please enter a valid files directory name'));
+	}
 	$path = $form_state['values']['annot_blast_path'];
 	if(!empty($path)) 
 	{

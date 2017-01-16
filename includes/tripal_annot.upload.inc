@@ -594,9 +594,41 @@ function tripal_annot_append_job_error($jid,$newstatus)
 	tripal_annot_update_field($jid,"status",$status);
 	
 }
+#
+# Returns (and creates if necessary) a downloadable files
+# directory which can work with linking to a subdir in /tmp, /tmp/XXX.
+# 
+
+function tripal_annot_check_file_dir()
+{
+	$dirname = variable_get("annot_files_dir");
+	$dir = DRUPAL_ROOT."/".tripal_get_files_dir()."/$dirname";
+	if (is_dir($dir))
+	{
+		return 1;
+	}
+	else
+	{
+		if (is_link($dir) )
+		{
+			$realpath = readlink($dir);
+			mkdir($realpath,755);
+		}
+		else
+		{
+			mkdir($dir,755);
+		}
+	}
+	if (is_dir($dir))
+	{
+		return 1;
+	}
+	return 0;
+}
 function tripal_annot_file_dir()
 {
-	return DRUPAL_ROOT."/".tripal_get_files_dir("annot");
+	$dirname = variable_get("annot_files_dir");
+	return DRUPAL_ROOT."/".tripal_get_files_dir($dirname); # throws an error if doesn't exist
 }
 function tripal_annot_build_file_path($filename)
 {

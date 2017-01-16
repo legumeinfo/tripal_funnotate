@@ -71,6 +71,20 @@ function annot_main_page()
 {
 	$text = "<h1>Transcript Annotation</h1>";
 
+	$file_dir_ok = tripal_annot_check_file_dir();
+	if (!$file_dir_ok)
+	{
+		$dir = tripal_annot_file_dir();
+		$text .= <<<END
+<pre>
+The output file directory:
+$dir
+does not exist and cannot be created. 
+Please specify a suitable directory in configuration. 
+</pre>
+END;
+		return $text;
+	}
 
 	# First make sure the configuration is ok
 	$error = validate_config();
