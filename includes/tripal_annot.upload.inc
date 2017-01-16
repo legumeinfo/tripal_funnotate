@@ -226,14 +226,18 @@ function annot_upload_form($form,&$form_state)
 	$type = $form_state['build_info']['args'][1];
 	$nseqs = $form_state['build_info']['args'][2];
 	$totlen = $form_state['build_info']['args'][3];
+	$use_email = variable_get("annot_use_email");
 
     $form = array();
 
-	$form['email'] = array(
-		'#type' => 'textfield',
-		'#title' => "Email (if you wish to be notified):",
-		'#size' => 25
-	);
+	if ($use_email)
+	{
+		$form['email'] = array(
+			'#type' => 'textfield',
+			'#title' => "Email (if you wish to be notified):",
+			'#size' => 25
+		);
+	}
 
 	$form['fid'] = array(
 		'#type' => 'hidden',
@@ -261,7 +265,6 @@ function annot_upload_form($form,&$form_state)
 # Validating that the file is still there is probably excessive.
 function annot_upload_form_validate($form, &$form_state)
 {
-  	$email = $form_state['values']['email'];
   	$fid = $form_state['values']['fid'];
 
 	$fobj = file_load($fid);
@@ -285,7 +288,9 @@ function annot_upload_form_submit($form, &$form_state)
 	global $user;
 
 	#annot_update_schema();
-  	$email = $form_state['values']['email'];
+	$use_email = variable_get("annot_use_email");
+  	$email = ($use_email ? $form_state['values']['email'] : "");
+
   	$fid = $form_state['values']['fid'];
   	$type = $form_state['values']['type'];
   	$nseqs = $form_state['values']['nseqs'];

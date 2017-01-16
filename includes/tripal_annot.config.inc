@@ -51,7 +51,11 @@ function annot_config_form($form_state)
     $form = array();
 	if (NULL == variable_get('annot_upload_sizeKB'))
 	{
-		variable_set('annot_upload_sizeKB',2);
+		variable_set('annot_upload_sizeKB',100);
+	}
+	if (NULL == variable_get('annot_use_email'))
+	{
+		variable_set('annot_use_email',0);
 	}
 
   $form['annot_blast_path']= array(
@@ -76,6 +80,12 @@ function annot_config_form($form_state)
 	'#size' => 5,
 	'#element_validate' => array('element_validate_integer_positive'), 
     '#default_value' => variable_get('annot_upload_sizeKB', ''),
+  );
+  $form['annot_use_email']= array(
+	'#type' => 'radios',
+    '#title' => t('Enable email notification'),
+    '#options' => array(1 => t("yes"), 0 => t("no")),
+    '#default_value' => variable_get('annot_use_email', 0)
   );
   $form['annot_db1']= array(
     '#type' => 'textfield',
@@ -510,6 +520,7 @@ function annot_config_form_validate($form, &$form_state)
 	{
 		variable_set('annot_upload_sizeKB', $form_state['values']['annot_upload_sizeKB']);
 	}
+	variable_set('annot_use_email', $form_state['values']['annot_use_email']);
 	if ($valid == 0)
 	{
 		drupal_set_message("The configuration failed!","error");
