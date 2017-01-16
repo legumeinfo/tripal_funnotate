@@ -93,13 +93,14 @@ function run_tripal_annot_ahrd($dblist, $jid)
 	annot_gzip_blasts($blasts,$jid, $jobkey);
 
 	$yamstr = Spyc::YAMLDump($yaml_obj,2,0);
-	file_put_contents("/tmp/yamldump.txt",$yamstr);
-	system("chmod 777 /tmp/yamldump.txt");
+	$yamtmp = file_directory_temp()."/yamldump.txt";
+	file_put_contents($yamtmp,$yamstr);
+	system("chmod 755 $yamtmp");
 
 	$java_path = variable_get("annot_java_path");
 	$ahrd_path = variable_get("annot_ahrd_path");
-	$ahrd_cmd = "$java_path -Xmx2g -jar $ahrd_path /tmp/yamldump.txt";
-	file_put_contents("/tmp/ahrd.txt",$ahrd_cmd);
+	$ahrd_cmd = "$java_path -Xmx2g -jar $ahrd_path $yamtmp";
+	##file_put_contents("/tmp/ahrd.txt",$ahrd_cmd);
 	system($ahrd_cmd);	
 
 	if (!file_exists($outpath))
@@ -135,7 +136,7 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 #
 function run_tripal_annot_ipr($cmd, $outpath, $jid)
 {
-file_put_contents("/tmp/ipr.txt",$cmd);
+	##file_put_contents("/tmp/ipr.txt",$cmd);
 	$res = db_query("select jobkey from tripal_annot where jid=$jid");
 	if (!$res)
 	{
@@ -146,8 +147,9 @@ file_put_contents("/tmp/ipr.txt",$cmd);
 	$jobkey = $r->jobkey;	
 
 	$propsdir = variable_get("annot_iprcfgdir");
-	file_put_contents("/tmp/cmd1.txt",$cmd);
-	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" );
+	##file_put_contents("/tmp/cmd1.txt",$cmd);
+	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" );
+	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
 	if (!file_exists($outpath))
 	{
 		tripal_append_job_error("jid","Failed to create InterPro result $outpath");
@@ -164,8 +166,9 @@ file_put_contents("/tmp/ipr.txt",$cmd);
 	}
 	$iprpath = "$iprdir/interproscan.sh";
 	$cmd = "$iprpath -i $outpath -mode convert -f RAW -o $rawpath";
-	file_put_contents("/tmp/cmd.txt",$cmd);
-	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr2.txt 2>& 1" );
+	##file_put_contents("/tmp/cmd.txt",$cmd);
+	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr2.txt 2>& 1" );
+	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
 	if (!file_exists($rawpath))
 	{
 		tripal_append_job_error("jid","Failed to convert InterPro xml to raw");
@@ -187,8 +190,9 @@ function run_tripal_annot_hmm($cmd, $outpath, $jid)
 	$r = $res->fetchObject();			
 	$jobkey = $r->jobkey;	
 
-	file_put_contents("/tmp/cmd3.txt",$cmd);
-	system("$cmd > /tmp/annothmm.txt 2>& 1" );
+	##file_put_contents("/tmp/cmd3.txt",$cmd);
+	##system("$cmd > /tmp/annothmm.txt 2>& 1" );
+	system("$cmd > /dev/null 2>& 1" );
 	if (!file_exists($outpath))
 	{
 		tripal_append_job_error("jid","Failed to create HMMER result $outpath");

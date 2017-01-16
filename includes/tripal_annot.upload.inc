@@ -604,7 +604,7 @@ function tripal_annot_build_file_path($filename)
 }
 function run_tripal_annot_escan($jid)
 {
-file_put_contents("/tmp/escan.txt","");
+	##file_put_contents("/tmp/escan.txt","");
 	$escanpath = variable_get("annot_escanpath");
 	if (!file_exists($escanpath))
 	{
@@ -627,13 +627,14 @@ file_put_contents("/tmp/escan.txt","");
 	}	
 	$r = $res->fetchObject();			
 	$upload_fpath = tripal_annot_build_file_path($r->ulname);
-file_put_contents("/tmp/escan.txt","$upload_fpath\n",FILE_APPEND);
+	##file_put_contents("/tmp/escan.txt","$upload_fpath\n",FILE_APPEND);
 	$jobkey = $r->jobkey;
 
 	$outpath = "$upload_fpath.trans";
 
-	$cmd = "$escanpath -M $smatpath -o /tmp/escan.out -t $outpath $upload_fpath";
-file_put_contents("/tmp/escan.txt","$cmd\n",FILE_APPEND);
+	##$cmd = "$escanpath -M $smatpath -o /tmp/escan.out -t $outpath $upload_fpath";
+	##file_put_contents("/tmp/escan.txt","$cmd\n",FILE_APPEND);
+	$cmd = "$escanpath -M $smatpath -o /dev/null -t $outpath $upload_fpath";
 	system($cmd);
 
 	if (!file_exists($outpath) || 0==filesize($outpath))

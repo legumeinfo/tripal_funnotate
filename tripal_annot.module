@@ -97,7 +97,7 @@ Annotation pipeline:
 
 1. <a  style="text-decoration:underline" href="http://estscan.sourceforge.net">ESTScan</a> if needed (to translate nucleotide uploads)
 2. <a  style="text-decoration:underline" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi">BLAST</a> alignment to reference gene databases (Soy, Medicago, Arabidopsis)
-3. <a  style="text-decoration:underline" href="http://www.ebi.ac.uk/interpro/search/sequence-search">InterProScan</a> (methods: TIGRFAM,ProDom ,SMART ,ProSiteProfiles ,ProSitePatterns ,SUPERFAMILY ,PANTHER ,Gene3D ,PIRSF ,Pfam ,Coils) 
+3. <a  style="text-decoration:underline" href="http://www.ebi.ac.uk/interpro/search/sequence-search">InterProScan</a> (methods: TIGRFAM, ProDom, SMART, ProSiteProfiles, ProSitePatterns, SUPERFAMILY, PANTHER, Gene3D, PIRSF, Pfam, Coils) 
 4. Assignment of <a style="text-decoration:underline" href="http://www.legumeinfo.org/search/phylotree">phytozome gene family</a> (using <a  style="text-decoration:underline" href="http://hmmer.org/">HMMer</a>)
 5. Best-hit extraction by <a  style="text-decoration:underline" href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD</a> (Automated Human Readable Descriptions)
 
