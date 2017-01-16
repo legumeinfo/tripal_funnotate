@@ -182,7 +182,7 @@ END;
 function check_seq_type($seq, $name, $seqtype, &$wrongArray)
 {
 	$test = preg_replace('/[agctn]/','',$seq);
-	if (strlen($test) < strlen($seq)/2)
+	if (strlen($test) < strlen($seq)/3)
 	{
 		# nucleotide
 		if ($seqtype == "p")
