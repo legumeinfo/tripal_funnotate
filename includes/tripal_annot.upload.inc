@@ -594,11 +594,11 @@ function tripal_annot_append_job_error($jid,$newstatus)
 	tripal_annot_update_field($jid,"status",$status);
 	
 }
-#
-# Returns (and creates if necessary) a downloadable files
-# directory which can work with linking to a subdir in /tmp, /tmp/XXX.
-# 
 
+# Check or attempt to create the files dir specified in config. 
+# This will be done during config, however if a system is cloned or mirrored
+# then it is possible for things like /tmp subdirectories to be missing.
+#
 function tripal_annot_check_file_dir()
 {
 	$dirname = variable_get("annot_files_dir");
@@ -613,10 +613,12 @@ function tripal_annot_check_file_dir()
 		{
 			$realpath = readlink($dir);
 			mkdir($realpath,755);
+			system("chmod 755 $realpath");
 		}
 		else
 		{
 			mkdir($dir,755);
+			system("chmod 755 $dir");
 		}
 	}
 	if (is_dir($dir))

@@ -136,7 +136,7 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 #
 function run_tripal_annot_ipr($cmd, $outpath, $jid)
 {
-	##file_put_contents("/tmp/ipr.txt",$cmd);
+	file_put_contents("/tmp/ipr.txt",$cmd);
 	$res = db_query("select jobkey from tripal_annot where jid=$jid");
 	if (!$res)
 	{
@@ -147,9 +147,8 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 	$jobkey = $r->jobkey;	
 
 	$propsdir = variable_get("annot_iprcfgdir");
-	##file_put_contents("/tmp/cmd1.txt",$cmd);
-	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" );
-	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
+	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" );
+	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
 	if (!file_exists($outpath))
 	{
 		tripal_append_job_error("jid","Failed to create InterPro result $outpath");
@@ -166,8 +165,8 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 	}
 	$iprpath = "$iprdir/interproscan.sh";
 	$cmd = "$iprpath -i $outpath -mode convert -f RAW -o $rawpath";
-	##file_put_contents("/tmp/cmd.txt",$cmd);
-	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr2.txt 2>& 1" );
+	file_put_contents("/tmp/cmd.txt",$cmd);
+	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr2.txt 2>& 1" );
 	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
 	if (!file_exists($rawpath))
 	{

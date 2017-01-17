@@ -569,7 +569,8 @@ function annot_calc_stats(&$stats,$jarr,$sumname)
 #TODO is this robust?
 function tripal_annot_file_url($fname)
 {
-	return file_create_url("public://tripal/annot/$fname");
+	$subdir = variable_get("annot_files_dir");
+	return file_create_url("public://tripal/$subdir/$fname");
 }
 function annot_cancel_form($form,&$form_state)
 {

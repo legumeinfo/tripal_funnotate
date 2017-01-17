@@ -48,12 +48,18 @@ END;
 }
 function annot_config_form($form_state)
 {
-$linkpath = tripal_get_files_dir()."/annot_link";
-$linktarg = "/tmp/annot_files";
-#mkdir($linktarg,755);
-#system("ln -s $linktarg $linkpath");
-#system("chmod 755 $linkpath");
-#rmdir($linktarg);
+	# TODO delete these testing lines
+	#$linkpath = tripal_get_files_dir()."/annot_link";
+	#$linktarg = "/tmp/annot_files";
+	#system("chmod 755 $linktarg");
+	#system("rm -Rf $linktarg");
+	#mkdir($linktarg,755);
+	#system("ln -s $linktarg $linkpath");
+	#system("chmod 755 $linkpath");
+	#rmdir($linktarg);
+	#$annotdir = DRUPAL_ROOT."/".tripal_get_files_dir()."/annot";
+	#system("chmod 755 $annotdir");
+	#system("rm -R $annotdir");
 
     $form = array();
 	if (NULL == variable_get('annot_upload_sizeKB'))
@@ -70,115 +76,115 @@ $linktarg = "/tmp/annot_files";
 	}
 	$files_topdir = tripal_get_files_dir();
 
-  $form['annot_upload_sizeKB']= array(
-    '#type' => 'textfield',
-    '#title' => t('Max upload size (KB)'),
-	'#number_type' => 'integer',
-	'#size' => 5,
-	'#element_validate' => array('element_validate_integer_positive'), 
-    '#default_value' => variable_get('annot_upload_sizeKB', ''),
-  );
-  $form['annot_use_email']= array(
-	'#type' => 'radios',
-    '#title' => t('Enable email notification'),
-    '#options' => array(1 => t("yes"), 0 => t("no")),
-    '#default_value' => variable_get('annot_use_email', 0)
-  );
-  $form['annot_files_dir']= array(
-    '#type' => 'textfield',
-    '#title' => t('Directory (or link) name for output files under '.$files_topdir),
-    '#default_value' => variable_get('annot_files_dir', ''),
-  );
-  $form['annot_blast_path']= array(
-    '#type' => 'textfield',
-    '#title' => t('Directory of the BLAST+ programs'),
-    '#default_value' => variable_get('annot_blast_path', ''),
-  );
-  $form['annot_java_path']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to java executable'),
-    '#default_value' => variable_get('annot_java_path', ''),
-  );
-  $form['annot_ahrd_path']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to AHRD jar file'),
-    '#default_value' => variable_get('annot_ahrd_path', ''),
-  );
-  $form['annot_db1']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to database 1'),
-    '#default_value' => variable_get('annot_db1', ''),
-  );
-  $form['annot_db2']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to database 2'),
-    '#default_value' => variable_get('annot_db2', ''),
-  );
-  $form['annot_db3']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to database 3'),
-    '#default_value' => variable_get('annot_db3', ''),
-  );
-  $form['annot_db4']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to database 4'),
-    '#default_value' => variable_get('annot_db4', ''),
-  );
-  $form['annot_yml']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to YAML file for AHRD'),
-    '#default_value' => variable_get('annot_yml', ''),
-  );
-  $form['annot_iprdir']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to InterProScan directory'),
-    '#default_value' => variable_get('annot_iprdir', ''),
-  );
-  $form['annot_iprcfgdir']= array(
-    '#type' => 'textfield',
-    '#title' => t('Directory for the InterProScan properties file'),
-    '#default_value' => variable_get('annot_iprcfgdir', ''),
-  );
-  $form['annot_iprparam']= array(
-    '#type' => 'textfield',
-    '#title' => t('InterProScan parameters (optional)'),
-    '#default_value' => variable_get('annot_iprparam', ''),
-  );
-  $form['annot_hmmdir']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to HMMER top directory (in which the binaries directory is found)'),
-    '#default_value' => variable_get('annot_hmmdir', ''),
-  );
-  $form['annot_hmmdb']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to HMMER database (hmm file)'),
-    '#default_value' => variable_get('annot_hmmdb', ''),
-  );
-  $form['annot_hmmparam']= array(
-    '#type' => 'textfield',
-    '#title' => t('HMMER parameters (optional)'),
-    '#default_value' => variable_get('annot_hmmparam', ''),
-  );
-  $form['annot_escanpath']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to ESTScan executable'),
-    '#default_value' => variable_get('annot_escanpath', ''),
-  );
-  $form['annot_smat']= array(
-    '#type' => 'textfield',
-    '#title' => t('Path to ESTScan matrix (smat file)'),
-    '#default_value' => variable_get('annot_smat', ''),
-  );
-  $form['annot_escanparam']= array(
-    '#type' => 'textfield',
-    '#title' => t('ESTScan parameters (optional)'),
-    '#default_value' => variable_get('annot_escanparam', ''),
-  );
+	$form['annot_upload_sizeKB']= array(
+		'#type' => 'textfield',
+		'#title' => t('Max upload size (KB)'),
+		'#number_type' => 'integer',
+		'#size' => 5,
+		'#element_validate' => array('element_validate_integer_positive'), 
+		'#default_value' => variable_get('annot_upload_sizeKB', ''),
+	);
+	$form['annot_use_email']= array(
+		'#type' => 'radios',
+		'#title' => t('Enable email notification'),
+		'#options' => array(1 => t("yes"), 0 => t("no")),
+		'#default_value' => variable_get('annot_use_email', 0)
+	);
+	$form['annot_files_dir']= array(
+		'#type' => 'textfield',
+		'#title' => t('Directory (or link) name for output files under '.$files_topdir),
+		'#default_value' => variable_get('annot_files_dir', ''),
+	);
+	$form['annot_blast_path']= array(
+		'#type' => 'textfield',
+		'#title' => t('Directory of the BLAST+ programs'),
+		'#default_value' => variable_get('annot_blast_path', ''),
+	);
+	$form['annot_java_path']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to java executable'),
+		'#default_value' => variable_get('annot_java_path', ''),
+	);
+	$form['annot_ahrd_path']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to AHRD jar file'),
+		'#default_value' => variable_get('annot_ahrd_path', ''),
+	);
+	$form['annot_db1']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to database 1'),
+		'#default_value' => variable_get('annot_db1', ''),
+	);
+	$form['annot_db2']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to database 2'),
+		'#default_value' => variable_get('annot_db2', ''),
+	);
+	$form['annot_db3']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to database 3'),
+		'#default_value' => variable_get('annot_db3', ''),
+	);
+	$form['annot_db4']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to database 4'),
+		'#default_value' => variable_get('annot_db4', ''),
+	);
+	$form['annot_yml']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to YAML file for AHRD'),
+		'#default_value' => variable_get('annot_yml', ''),
+	);
+	$form['annot_iprdir']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to InterProScan directory'),
+		'#default_value' => variable_get('annot_iprdir', ''),
+	);
+	$form['annot_iprcfgdir']= array(
+		'#type' => 'textfield',
+		'#title' => t('Directory for the InterProScan properties file'),
+		'#default_value' => variable_get('annot_iprcfgdir', ''),
+	);
+	$form['annot_iprparam']= array(
+		'#type' => 'textfield',
+		'#title' => t('InterProScan parameters (optional)'),
+		'#default_value' => variable_get('annot_iprparam', ''),
+	);
+	$form['annot_hmmdir']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to HMMER top directory (in which the binaries directory is found)'),
+		'#default_value' => variable_get('annot_hmmdir', ''),
+	);
+	$form['annot_hmmdb']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to HMMER database (hmm file)'),
+		'#default_value' => variable_get('annot_hmmdb', ''),
+	);
+	$form['annot_hmmparam']= array(
+		'#type' => 'textfield',
+		'#title' => t('HMMER parameters (optional)'),
+		'#default_value' => variable_get('annot_hmmparam', ''),
+	);
+	$form['annot_escanpath']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to ESTScan executable'),
+		'#default_value' => variable_get('annot_escanpath', ''),
+	);
+	$form['annot_smat']= array(
+		'#type' => 'textfield',
+		'#title' => t('Path to ESTScan matrix (smat file)'),
+		'#default_value' => variable_get('annot_smat', ''),
+  	);
+	$form['annot_escanparam']= array(
+		'#type' => 'textfield',
+		'#title' => t('ESTScan parameters (optional)'),
+		'#default_value' => variable_get('annot_escanparam', ''),
+	);
 
-$form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => 'Save Configuration',
-  );
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Save Configuration',
+	);
 
 
       return $form;
@@ -203,6 +209,7 @@ function annot_config_form_validate($form, &$form_state)
 				{
 					$realpath = readlink($fulldir);
 					mkdir($realpath,755);
+					system("chmod 755 $realpath");
 					if (is_dir($fulldir))
 					{
 						variable_set('annot_files_dir', $form_state['values']['annot_files_dir']);
@@ -210,13 +217,22 @@ function annot_config_form_validate($form, &$form_state)
 					else
 					{
 						$valid = 0;
-						form_set_error('annot_files_dir', t('Files directory $fulldir is a broken link which could not be fixed'));
+						form_set_error('annot_files_dir', t("Files directory $fulldir is a broken link which could not be fixed"));
 					}
 				}
 				else
 				{
-					$valid = 0;
-					form_set_error('annot_files_dir', t('Files directory $fulldir could not be created'));
+					mkdir($fulldir,755);
+					system("chmod 755 $fulldir");
+					if (is_dir($fulldir))
+					{
+						variable_set('annot_files_dir', $form_state['values']['annot_files_dir']);
+					}
+					else
+					{
+						$valid = 0;
+						form_set_error('annot_files_dir', t("Files directory $fulldir could not be created"));
+					}
 				}
 			}
 		}

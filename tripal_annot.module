@@ -74,12 +74,9 @@ function annot_main_page()
 	$file_dir_ok = tripal_annot_check_file_dir();
 	if (!$file_dir_ok)
 	{
-		$dir = tripal_annot_file_dir();
 		$text .= <<<END
 <pre>
-The output file directory:
-$dir
-does not exist and cannot be created. 
+The output file directory specified in configuration either does not exist or is a broken link.
 Please specify a suitable directory in configuration. 
 </pre>
 END;
