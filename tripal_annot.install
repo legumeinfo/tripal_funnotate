@@ -95,13 +95,13 @@ function tripal_annot_schema()
 		'default' => '',
       ),
       'status' => array(
-        'description' => t('Status of the job (only used if error)'),
+        'description' => t('Status of the job)'),
         'type' => 'varchar',
         'length' => 5000,
 		'default' => '',
       ),
       'joblist' => array(
-        'description' => t('List of running jobs'),
+        'description' => t('List of tripal jobs (only one now)'),
         'type' => 'varchar',
         'length' => 255,
 		'default' => '',

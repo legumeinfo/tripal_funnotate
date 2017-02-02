@@ -275,11 +275,14 @@ function annot_upload_form_validate($form, &$form_state)
 	}
 }
 
+# 
+# User has hit the "submit job" button to launch the job
+# Note that the file has already been analyzed and cleaned by this point
 #
 # Steps:
 # Create job key string
 # Make DB entry
-# Launch jobs
+# Queue tripal job
 # Email notify
 # Redirect to tracking page
 #
@@ -301,9 +304,9 @@ function annot_upload_form_submit($form, &$form_state)
 	$fobj = file_load($fid);
 	$fpath = drupal_realpath($fobj->uri);
 	$ul_origname = drupal_basename($fpath);
-	$cleaned_path = "$fpath.cleaned"; # The cleaned copy that we will be actually using
+	$cleaned_path = "$fpath.cleaned"; # The cleaned copy which should already be there
 
-	# First we need a semi-private tag for this job so only the
+	# First we need a semi-private 'jobkey' for this job so only the
 	# user in question can see their tracking page
 
 	$jobkey = make_jobkey();
@@ -323,21 +326,139 @@ function annot_upload_form_submit($form, &$form_state)
 
 	$upload_new_name = "upload_$jobkey";  # can't use the jid because then after uninstall/reinstall
 	$upload_new_path = tripal_annot_build_file_path($upload_new_name);
+
+	#
+	# Copy the cleaned user file into the tripal files location. 
+	# This will be the query file for the jobs UNLESS it was a nucleotide file. 
+	# In that case ESTScan output will be in a new file with ".trans" appended,
+	# and that file will be used downstream. 
+	#
 	system("cp $cleaned_path $upload_new_path");
 	system("chmod -w $upload_new_path"); # so can't accidentally delete during debugging
 	tripal_annot_update_field($jid,"ulname",$upload_new_name);
 
+TODO: pickup here
 	$translated_path = $upload_new_path; 
 	if ($type == "n")
 	{
 		$translated_path .= ".trans";
 	}
 
-	$joblist = array(); # list of jobid entries to be stored in DB for use by tracking page
-						# the blast jobs have the format "jobid:dbnum" 
-						# where db number is the target database number (1-4) that was run
-	$dblist = array(); # db numbers used in blasts, needed by the ahrd job
+	#
+	# Queue the Tripal job that will do the work
+	#
 
+	$job_args = array(
+		"jid" => $jid
+	);
+
+	$job_id = tripal_add_job(
+	  "annot $jid",
+	  "tripal_annot",
+	  "run_tripal_annot",
+	  $job_args,
+	  $user->uid
+	);
+	tripal_annot_update_field($jid,"joblist",$job_id)
+	
+	tripal_annot_updated_field($jid,"status","Your job is queued and will be started soon");
+
+	if ($email != "")
+	{
+		$msg = <<< END
+Your LIS annotation job has been started. Your job ID is $jobkey and the results will be available at 
+http://www.legumeinfo.org/annot/job/$jobkey .
+END;
+
+		drupal_mail("tripal_annot", "mymail", $email, language_default(), 
+			$params = array('msg' => $msg), "noreply@legumeinfo.org",  TRUE);
+	}
+
+	drupal_goto("annot/job/$jobkey" );
+
+
+function run_tripal_annot($jid)
+{
+	#
+	# INITIALIZING
+	#
+	# Build the job list and also status string lists to use reporting status
+	# $joblist and $queued have same content but former is internal, latter is for status display
+	# Jobs are popped off of $joblist and $queued in parallel, and added to $running and $done for status
+	#
+	$jinfo = tripal_annot_get_job_info($jid,"");
+	$jobkey = $jinfo->jobkey;
+
+	$joblist = array(); 				
+	$queued = array(); $done = array();	
+	$running = array(); $failed = array() # these could be strings as long as no parallel jobs
+	$dblist = array(); # db numbers used in blasts, needed later for ahrd
+
+	# ESTScan
+	if ($type == "n")
+	{
+		array_push($joblist, "estscan");	
+		array_push($queued, "ESTScan");	
+	}
+	# BLAST
+	for ($j = 1; $j <= 4; $j++) # TODO: blasts hardcoded to 4 max
+	{
+		$dbpath = variable_get("annot_db$j","");
+		if ($dbpath != "")
+		{
+			if (!file_exists("$dbpath"))
+			{
+				drupal_set_message("Can't find $dbpath!");
+				return 0;
+			}
+			array_push($joblist, "blast:$j");
+			array_push($queued, basename($dbpath)." BLAST");
+			array_push($dblist,$j);
+		}
+	}
+	# AHRD
+	array_push($joblist, "ahrd");	
+	array_push($queued, "AHRD");	
+	# Interpro
+	array_push($joblist, "ipr");	
+	array_push($queued, "InterProScan");	
+	# HMM
+	array_push($joblist, "hmm");	
+	array_push($queued, "HMMer");	
+	# post
+	array_push($joblist, "post");	
+	array_push($queued, "Postprocessing");	
+
+	#
+	# RUNNING
+	#
+
+	while (count($joblist) > 0)
+	{
+		$nextjob = array_shift($joblist);
+		$nextstat = array_shift($queued);	
+		array_push($running,$nexstat);
+
+		$error = run_job($nextjob);
+
+		if ($error != "")
+		{
+			array_push($failed,array_shift($running));		
+			file_append_contents("/tmp/annot.joberr","ERROR in $nextjob for $jobkey\n$error\n###########\n");
+			drupal_set_message("The annotation did not complete successfully!");
+			return 0;
+		}
+		else
+		{
+			array_push($done,array_shift($running));
+		}
+	}
+
+	$dbpath = variable_get("annot_db$num","");
+	if ($dbpath == "")
+	{
+		return 0;
+	}
 	#
 	# Queue the ESTScan job, if neeeded
 	#
@@ -487,18 +608,6 @@ db_update('tripal_annot')
 		)
 		->condition('jid', $jid)
 		->execute();
-
-	if ($email != "")
-	{
-		$msg = <<< END
-Your LIS annotation job has been started. Your job ID is $jobkey and the results will be available at 
-http://www.legumeinfo.org/annot/job/$jobkey .
-END;
-
-		drupal_mail("tripal_annot", "mymail", $email, language_default(), 
-			$params = array('msg' => $msg), "noreply@legumeinfo.org",  TRUE);
-	}
-	drupal_goto("annot/job/$jobkey" );
 }
 function jobkey_exists($key)
 {
@@ -635,6 +744,32 @@ function tripal_annot_file_dir()
 function tripal_annot_build_file_path($filename)
 {
 	return tripal_annot_file_dir()."/$filename";
+}
+function tripal_annot_get_job_info($jid,$jobkey)
+{
+	if ($jid != 0)
+	{
+		$res = db_query("select * from tripal_annot where jid=$jid");
+		if (!$res)
+		{
+			tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
+			return;
+		}	
+		$r = $res->fetchObject();			
+		return $r;
+	}
+	else if ($jobkey != "")
+	{
+		$res = db_query("select * from tripal_annot where jobkey='$jobkey'");
+		if (!$res)
+		{
+			tripal_annot_append_job_error("Could not find jobkey $jobkey in tripal_annot table!");
+			return;
+		}	
+		$r = $res->fetchObject();			
+		return $r;
+	}
+	return FALSE;
 }
 function run_tripal_annot_escan($jid)
 {

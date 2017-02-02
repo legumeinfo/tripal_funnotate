@@ -90,6 +90,12 @@ function annot_config_form($form_state)
 		'#options' => array(1 => t("yes"), 0 => t("no")),
 		'#default_value' => variable_get('annot_use_email', 0)
 	);
+	$form['annot_nthread']= array(
+		'#type' => 'textfield',
+		'#title' => t('Number of threads to use'),
+		'#size' => 5,
+		'#default_value' => variable_get('annot_nthread', '1'),
+	);
 	$form['annot_files_dir']= array(
 		'#type' => 'textfield',
 		'#title' => t('Directory (or link) name for output files under '.$files_topdir),
@@ -597,6 +603,16 @@ function annot_config_form_validate($form, &$form_state)
 	else
 	{
 		variable_set('annot_upload_sizeKB', $form_state['values']['annot_upload_sizeKB']);
+	}
+	$threads = $form_state['values']['annot_nthread'];
+	if (is_numeric($threads) && $threads > 0)
+	{
+		variable_set('annot_nthread', $threads);
+	}
+	else
+	{
+		form_set_error('annot_nthread',t("Please set threads to a valid number"));
+		$valid = 0;
 	}
 	variable_set('annot_use_email', $form_state['values']['annot_use_email']);
 	if ($valid == 0)
