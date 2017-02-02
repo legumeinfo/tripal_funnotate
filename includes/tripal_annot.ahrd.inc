@@ -136,6 +136,22 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 #
 function run_tripal_annot_ipr($cmd, $outpath, $jid)
 {
+	$iprdir = variable_get("annot_iprdir","");
+	if (!file_exists("$iprdir/interproscan.sh"))
+	{
+		drupal_set_message("Can't find interproscan.sh in $iprdir!");
+		return 0;
+	}
+	$iprpath = "$iprdir/interproscan.sh";
+
+	#$tparam = ($type == "n" ? " -t n " : "");
+	
+
+	$iprparam = variable_get("annot_iprparam");
+	
+	$outname = "ipr_$jid.xml";
+	$outpath = tripal_annot_build_file_path($outname);
+	$params = " -i $translated_path -o $outpath -f XML $iprparam ";
 	file_put_contents("/tmp/ipr.txt",$cmd);
 	$res = db_query("select jobkey from tripal_annot where jid=$jid");
 	if (!$res)
@@ -180,6 +196,21 @@ function run_tripal_annot_ipr($cmd, $outpath, $jid)
 
 function run_tripal_annot_hmm($cmd, $outpath, $jid)
 {
+	$hmmdir = variable_get("annot_hmmdir","");
+	if (!file_exists("$hmmdir/binaries/hmmsearch"))
+	{
+		drupal_set_message("Can't find hmmsearch in $hmmdir/binaries!");
+		return 0;
+	}
+	$hmmsearchpath = "$hmmdir/binaries/hmmsearch";
+
+	$hmmdb = variable_get("annot_hmmdb");
+	$hmmparam = variable_get("annot_hmmparam");
+	
+	$outname = "hmm_$jobkey.tbl";
+	$outpath = tripal_annot_build_file_path($outname);
+	$params = " --tblout $outpath $hmmdb $translated_path ";
+	$cmd = "$hmmsearchpath $params";
 	$res = db_query("select jobkey from tripal_annot where jid=$jid");
 	if (!$res)
 	{

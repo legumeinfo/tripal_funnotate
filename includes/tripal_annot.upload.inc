@@ -337,7 +337,6 @@ function annot_upload_form_submit($form, &$form_state)
 	system("chmod -w $upload_new_path"); # so can't accidentally delete during debugging
 	tripal_annot_update_field($jid,"ulname",$upload_new_name);
 
-TODO: pickup here
 	$translated_path = $upload_new_path; 
 	if ($type == "n")
 	{
@@ -359,9 +358,9 @@ TODO: pickup here
 	  $job_args,
 	  $user->uid
 	);
-	tripal_annot_update_field($jid,"joblist",$job_id)
+	tripal_annot_update_field($jid,"joblist",$job_id);
 	
-	tripal_annot_updated_field($jid,"status","Your job is queued and will be started soon");
+	tripal_annot_update_field($jid,"status","Your job is queued and will be started soon");
 
 	if ($email != "")
 	{
@@ -376,9 +375,15 @@ END;
 
 	drupal_goto("annot/job/$jobkey" );
 
-
+}
 function run_tripal_annot($jid)
 {
+	$errlog = variable_get('annot_elog', '');
+	if (!test_errlog($errlog))
+	{
+		drupal_set_message("Can't write to error log! Please configure a valid error log file.");
+		return 0;
+	}
 	#
 	# INITIALIZING
 	#
@@ -391,13 +396,13 @@ function run_tripal_annot($jid)
 
 	$joblist = array(); 				
 	$queued = array(); $done = array();	
-	$running = array(); $failed = array() # these could be strings as long as no parallel jobs
+	$running = array(); $failed = array(); # these could be strings as long as no parallel jobs
 	$dblist = array(); # db numbers used in blasts, needed later for ahrd
 
 	# ESTScan
 	if ($type == "n")
 	{
-		array_push($joblist, "estscan");	
+		array_push($joblist, "escan");	
 		array_push($queued, "ESTScan");	
 	}
 	# BLAST
@@ -439,12 +444,12 @@ function run_tripal_annot($jid)
 		$nextstat = array_shift($queued);	
 		array_push($running,$nexstat);
 
-		$error = run_job($nextjob);
+		$error = run_job($nextjob,$jid,$jobkey,$errlog,$jinfo);
 
 		if ($error != "")
 		{
 			array_push($failed,array_shift($running));		
-			file_append_contents("/tmp/annot.joberr","ERROR in $nextjob for $jobkey\n$error\n###########\n");
+			file_put_contents($errlog,"ERROR in $nextjob for $jobkey\n$error\n###########\n",FILE_APPEND);
 			drupal_set_message("The annotation did not complete successfully!");
 			return 0;
 		}
@@ -454,160 +459,33 @@ function run_tripal_annot($jid)
 		}
 	}
 
-	$dbpath = variable_get("annot_db$num","");
-	if ($dbpath == "")
+}
+function run_job($name,$jid,$jobkey,$errlog,$jinfo)
+{
+	if (0 == strncmp($name,"escan",3))
 	{
-		return 0;
+		tripal_annot_run_escan($jid,$jobkey,$jinfo);
 	}
-	#
-	# Queue the ESTScan job, if neeeded
-	#
-	if ($type == "n")
+	else if (0 == strncmp($name,"blast",3))
 	{
-		$job_args = array(
-			"jid" => $jid
-		);
 
-		$job_id = tripal_add_job(
-		  "annot $jid ESCAN",
-		  "tripal_annot",
-		  "run_tripal_annot_escan",
-		  $job_args,
-		  $user->uid
-		);
-		array_push($joblist,$job_id);
 	}
-
-	#
-	# Now start the blast jobs (up to 4)
-	#
-	for ($j = 1; $j <= 4; $j++)
+	else if (0 == strncmp($name,"ahrd",3))
 	{
-		$jobid = start_blast_job($jid,$j,$translated_path,$type);
-		if ($jobid != 0)
-		{
-			array_push($joblist, "$jobid:$j");
-			array_push($dblist,$j);
-		}
+
 	}
-	if (count($joblist) == 0)
+	else if (0 == strncmp($name,"ipr",3))
 	{
-		drupal_set_message(t("No blast jobs were able to start!"));	
-		tripal_annot_append_job_error($jid,t("Blast jobs were unable to start!"));
-		drupal_goto("annot/job/$jobkey" );
+
 	}
-
-	#
-	# Now start the ahrd job
-	#
-	$dbstr = join(",",$dblist);
-	$job_args = array(
-		"dblist" => $dbstr,
-		"jid" => $jid
-	);
-
-	$job_id = tripal_add_job(
-	  "annot $jid AHRD",
-	  "tripal_annot",
-	  "run_tripal_annot_ahrd",
-	  $job_args,
-	  $user->uid
-	);
-	array_push($joblist,$job_id);
-
-	#
-	# Now start the interpro job
-	#
-	$iprdir = variable_get("annot_iprdir","");
-	if (!file_exists("$iprdir/interproscan.sh"))
+	else if (0 == strncmp($name,"hmm",3))
 	{
-		drupal_set_message("Can't find interproscan.sh in $iprdir!");
-		return 0;
+
 	}
-	$iprpath = "$iprdir/interproscan.sh";
-
-	#$tparam = ($type == "n" ? " -t n " : "");
-	
-
-	$iprparam = variable_get("annot_iprparam");
-	
-	$outname = "ipr_$jid.xml";
-	$outpath = tripal_annot_build_file_path($outname);
-	$params = " -i $translated_path -o $outpath -f XML $iprparam ";
-	$cmd = "$iprpath $params";
-
-	$job_args = array(
-		"cmd" => $cmd,
-		"out" => $outpath,
-		"jid" => $jid);
-
-	$job_id = tripal_add_job(
-	  "annot $jid IPR",
-	  "tripal_annot",
-	  "run_tripal_annot_ipr",
-	  $job_args,
-	  $user->uid
-	);
-	array_push($joblist,$job_id);
-
-	#
-	# Now start the hmmer job...protein only, for the moment
-	#
-
-	$hmmdir = variable_get("annot_hmmdir","");
-	if (!file_exists("$hmmdir/binaries/hmmsearch"))
+	else if (0 == strncmp($name,"post",3))
 	{
-		drupal_set_message("Can't find hmmsearch in $hmmdir/binaries!");
-		return 0;
+
 	}
-	$hmmsearchpath = "$hmmdir/binaries/hmmsearch";
-
-	$hmmdb = variable_get("annot_hmmdb");
-	$hmmparam = variable_get("annot_hmmparam");
-	
-	$outname = "hmm_$jobkey.tbl";
-	$outpath = tripal_annot_build_file_path($outname);
-	$params = " --tblout $outpath $hmmdb $translated_path ";
-	$cmd = "$hmmsearchpath $params";
-
-	$job_args = array(
-		"cmd" => $cmd,
-		"out" => $outpath,
-		"jid" => $jid);
-
-	$job_id = tripal_add_job(
-	  "annot $jid HMMR",
-	  "tripal_annot",
-	  "run_tripal_annot_hmm",
-	  $job_args,
-	  $user->uid
-	);
-	array_push($joblist,$job_id);
-
-	#
-	# Now start the postprocesing job
-	#
-
-	$job_args = array(
-		"jid" => $jid);
-
-	$job_id = tripal_add_job(
-	  "annot $jid POST",
-	  "tripal_annot",
-	  "run_tripal_annot_post",
-	  $job_args,
-	  $user->uid
-	);
-	array_push($joblist,$job_id);
-
-$jobstr = join(",",$joblist);
-db_update('tripal_annot')
-	->fields(array(
-	        'joblist' => $jobstr
-	        )
-		)
-		->condition('jid', $jid)
-		->execute();
 }
 function jobkey_exists($key)
 {
@@ -623,39 +501,29 @@ function make_jobkey()
 	$char5 = chr(ord('A') + rand(0,25));	
 	return $char1.$char2.$char3.$char4.$char5;
 }
-function start_blast_job($jid, $num, $query, $type)
+function tripal_annot_run_blast($jid, $num)
 {
-	global $user;
-	annot_update_schema();
 	$dbpath = variable_get("annot_db$num","");
 	if ($dbpath == "")
 	{
-		return 0;
+		return "BLAST database #$num was not specified!";
 	}
 	if (!file_exists("$dbpath"))
 	{
-		drupal_set_message("Can't find $dbpath!");
-		return 0;
-	}
-
-	if (!file_exists($query))
-	{
-		# Can't check this now since ESTScan may have to create the file first
-		#drupal_set_message("Can't find blast query $query!");
-		#return 0;
+		return "BLAST database #$num not found!";
 	}
 
 	$blastpath = variable_get("annot_blast_path","");
 	$blastprog = "blastp";
 	if (!file_exists("$blastpath/$blastprog"))
 	{
-		drupal_set_message("Can't find $blastprog in $blastpath!");
-		return 0;
+		return "Can't find $blastprog!");
 	}
 	$blastpath .= "/$blastprog";	
 	
 	$outname = "blast_$jid"."_$num";
 	$outpath = tripal_annot_build_file_path($outname);
+#STARTHERE where did query come from?
 	$params = " -db $dbpath -query $query -out $outpath -outfmt 6";
 	$cmd = "$blastpath $params";
 
@@ -694,14 +562,15 @@ function tripal_annot_update_field($jid,$field,$val)
 		->execute();
 	
 }
+# TODO: elim
 function tripal_annot_append_job_error($jid,$newstatus)
 {
-	$result = db_query("select status from tripal_annot where jid=$jid");
-	$r = $result->fetchAssoc();
-	$status = $r["status"];
-	$status .= "$newstatus;";
-	tripal_annot_update_field($jid,"status",$status);
-	
+#	$result = db_query("select status from tripal_annot where jid=$jid");
+#	$r = $result->fetchAssoc();
+#	$status = $r["status"];
+#	$status .= "$newstatus;";
+#	tripal_annot_update_field($jid,"status",$status);
+#	
 }
 
 # Check or attempt to create the files dir specified in config. 
@@ -750,55 +619,37 @@ function tripal_annot_get_job_info($jid,$jobkey)
 	if ($jid != 0)
 	{
 		$res = db_query("select * from tripal_annot where jid=$jid");
-		if (!$res)
+		if ($res)
 		{
-			tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
-			return;
-		}	
-		$r = $res->fetchObject();			
-		return $r;
+			$r = $res->fetchObject();			
+			return $r;
+		}
 	}
 	else if ($jobkey != "")
 	{
 		$res = db_query("select * from tripal_annot where jobkey='$jobkey'");
-		if (!$res)
+		if ($res)
 		{
-			tripal_annot_append_job_error("Could not find jobkey $jobkey in tripal_annot table!");
-			return;
-		}	
-		$r = $res->fetchObject();			
-		return $r;
+			$r = $res->fetchObject();			
+			return $r;
+		}
 	}
 	return FALSE;
 }
-function run_tripal_annot_escan($jid)
+function tripal_annot_run_escan($jid,$jobkey,$jinfo)
 {
-	##file_put_contents("/tmp/escan.txt","");
 	$escanpath = variable_get("annot_escanpath");
 	if (!file_exists($escanpath))
 	{
-		tripal_annot_append_job_error("Could not find estscan binary $escanpath!");
-		return;
+		return "Could not find estscan binary $escanpath!";
 	}
 	$smatpath = variable_get("annot_smat");
 	if (!file_exists($smatpath))
 	{
-		tripal_annot_append_job_error("Could not find smat file $smatpath!");
-		return;
+		return "Could not find smat file $smatpath!";
 	}
 	$params = variable_get("annot_escanparam");
-
-	$res = db_query("select * from tripal_annot where jid=$jid");
-	if (!$res)
-	{
-		tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
-		return;
-	}	
-	$r = $res->fetchObject();			
-	$upload_fpath = tripal_annot_build_file_path($r->ulname);
-	##file_put_contents("/tmp/escan.txt","$upload_fpath\n",FILE_APPEND);
-	$jobkey = $r->jobkey;
-
+	$upload_fpath = tripal_annot_build_file_path($jinfo->ulname);
 	$outpath = "$upload_fpath.trans";
 
 	##$cmd = "$escanpath -M $smatpath -o /tmp/escan.out -t $outpath $upload_fpath";
@@ -808,7 +659,18 @@ function run_tripal_annot_escan($jid)
 
 	if (!file_exists($outpath) || 0==filesize($outpath))
 	{
-		tripal_append_job_error("jid","ESTScan failed! (no output file, or empty)");
-		return;
+		return "ESTScan failed! (no output file, or empty)";
 	}
+}
+function test_errlog($path)
+{
+	if(!empty($path)) 
+	{
+		$ret = file_put_contents($path,"#Tripal Annotation Module Error Log\n\n");
+		if($ret != FALSE && file_exists($path) ) 
+		{
+			return 1;
+		}
+	}
+	return 0;
 }

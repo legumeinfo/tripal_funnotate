@@ -96,6 +96,11 @@ function annot_config_form($form_state)
 		'#size' => 5,
 		'#default_value' => variable_get('annot_nthread', '1'),
 	);
+	$form['annot_elog']= array(
+		'#type' => 'textfield',
+		'#title' => t('Error log file'),
+		'#default_value' => variable_get('annot_elog', '/tmp/tripal_annot.err'),
+	);
 	$form['annot_files_dir']= array(
 		'#type' => 'textfield',
 		'#title' => t('Directory (or link) name for output files under '.$files_topdir),
@@ -615,6 +620,25 @@ function annot_config_form_validate($form, &$form_state)
 		$valid = 0;
 	}
 	variable_set('annot_use_email', $form_state['values']['annot_use_email']);
+	$path = $form_state['values']['annot_elog'];
+	if(!empty($path)) 
+	{
+		$ret = file_put_contents($path,"#Tripal Annotation Module Error Log\n\n");
+		if($ret != FALSE && file_exists($path) ) 
+		{
+			variable_set('annot_elog', $path);
+		}
+		else 
+		{
+			form_set_error('annot_elog',t("Unable to write to error log file!"));
+			$valid = 0;
+		}
+	}
+	else
+	{
+		form_set_error('annot_elog',t("Please specify a valid error log file"));
+		$valid = 0;
+	}
 	if ($valid == 0)
 	{
 		drupal_set_message("The configuration failed!","error");
