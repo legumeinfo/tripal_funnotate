@@ -8,92 +8,64 @@
 #
 ##################################################################################
 
-# Note that all files which get added to file_managed are named using the unique "jobkey"
-# This is because the managed file system does not allow duplicated filenames
-# and if a duplicate is added it will fail with no error message
-
-#
-#	Callback function for running AHRD
-#
-function run_tripal_annot_ahrd($dblist, $jid)
+function run_tripal_annot_ahrd($jid,$jinfo)
 {
-	$dbs = explode(",",$dblist);
-	if (count($dbs) == 0)
-	{
-		# This should be caught earlier but anyway
-		tripal_annot_append_job_error( "No annotation blasts were run (job $jid, dblist $dblist)!");
-		return;
-	}
 	$ymlfile = variable_get("annot_yml");
 	if (!file_exists($ymlfile))
 	{
-		tripal_annot_append_job_error("Could not open yaml file $ymlfile!");
-		return;
+		tripal_annot_log_error("Unable to find yml file: $ymlfile");
+		return "Could not find yaml file!");
 	}
-	$yaml_obj = spyc_load_file($ymlfile);
-	$res = db_query("select * from tripal_annot where jid=$jid");
-	if (!$res)
-	{
-		tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
-		return;
-		
-	}	
-	$r = $res->fetchObject();			
-	$upload_fpath = tripal_annot_build_file_path($r->ulname);
-	if ($r->ultype == "n")
-	{
-		$upload_fpath .= ".trans";
-	}
-	
-	$jobkey = $r->jobkey;
+	$yaml_obj = spyc_load_file($ymlfile); # Spyc is a YML parser 
 
-	$yaml_obj["proteins_fasta"] = $upload_fpath;
+	$upload_fpath = tripal_annot_build_query_path();
+	
+	$jobkey = $jinfo->jobkey;
 	$ahrd_outname = "ahrd_$jobkey.txt";
 	$ahrd_outpath = tripal_annot_build_file_path($ahrd_outname);
+
+	#
+	# edit the yml data to put in the specific blast output paths, etc
+	#
+	$yaml_obj["proteins_fasta"] = $upload_fpath;
 	$yaml_obj["output"] = $ahrd_outpath;
 
-	if (0) # $r->ultype == "n") # now we're using a translated file rather than blastx
-	{
-		$yaml_obj["token_score_bit_score_weight"] = 0.6;
-		$yaml_obj["token_score_database_score_weight"] = 0.4;
-		$yaml_obj["token_score_overlap_score_weight"] = 0;
-	}
-	
 	$blasts = array();
 	foreach ($yaml_obj["blast_dbs"] as $dbtag => $dbarr)
 	{
 		$dbpath = $dbarr["database"];
 		if ($dbpath == "" || !file_exists($dbpath))
 		{
-			tripal_annot_append_job_error("Database $dbpath in yaml $ymlfile does not exist!");
-			return;
+			tripal_annot_log_error("Database $dbpath in yaml $ymlfile does not exist!");
+			return "Database $dbtag in yaml file does not exist!");
 		}
-		# We have to find which of the databases this one is
+
+		# We have to find the numeral of this database,
 		# in order to know the blast output file name
+		#
 		$dbnum = 0;
-		for ($i = 1; $i <= 4; $i++)
+		for ($i = 1; $i <= 4; $i++) # TODO: hardcoded at 4
 		{
 			$dbpath2 = variable_get("annot_db$i");
-			if ($dbpath2 == $dbpath)
+			if ($dbpath2 == $dbpath) # exact string match: but this was already checked during config
 			{
 				$dbnum = $i;
 				break;
 			}
 		}
-		$outname = "blast_$jid"."_$dbnum";
-		$outpath = tripal_annot_build_file_path($outname);
+		$outpath = tripal_annot_build_blast_output_path($jid,$dbnum);
 		if (!file_exists($outpath))
 		{
-			tripal_annot_append_error("Blast output $outpath (db$i) not found!");
-			return;
+			tripal_annot_log_error("Blast output $outpath (db$i) not found!");
+			return "Unable to find blast out for DB#$i";
 		}
-		array_push($blasts,$outname);
 		$yaml_obj["blast_dbs"][$dbtag]["file"] = $outpath;
 	}
-	annot_gzip_blasts($blasts,$jid, $jobkey);
+	#annot_gzip_blasts($blasts,$jid, $jobkey);
 
 	$yamstr = Spyc::YAMLDump($yaml_obj,2,0);
-	$yamtmp = file_directory_temp()."/yamldump.txt";
+
+	$yamtmp = file_directory_temp()."/yamldump.txt"; # TODO: remove
 	file_put_contents($yamtmp,$yamstr);
 	system("chmod 755 $yamtmp");
 
@@ -105,10 +77,10 @@ function run_tripal_annot_ahrd($dblist, $jid)
 
 	if (!file_exists($outpath))
 	{
-		tripal_append_job_error("jid","AHRD failed! (no output file)");
-		return;
+		return "AHRD failed! (no output file)";
 	}
 	tripal_annot_update_field($jid,	"ahrdname",$ahrd_outname);
+	return "";
 }
 function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 {

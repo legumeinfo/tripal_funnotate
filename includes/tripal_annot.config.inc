@@ -376,7 +376,7 @@ function annot_config_form_validate($form, &$form_state)
 	}
 	if ($numset == 0)
 	{
-		form_set_error("annot_db1", t("Please enter at least one database"));
+		form_set_error("annot_db1", t("Please enter at least one BLAST database"));
 		$valid = 0;
 	}
 	

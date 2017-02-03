@@ -29,7 +29,7 @@ function tripal_annot_schema()
 		'default' => '',
       ),
       'ulname' => array(
-        'description' => t('Uploaded file name, after cleaning'), 
+        'description' => t('Uploaded file name, after cleaning; this is the query for most jobs'), 
         'type' => 'varchar',
         'length' => 255,
 		'default' => '',

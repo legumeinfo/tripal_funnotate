@@ -324,24 +324,19 @@ function annot_upload_form_submit($form, &$form_state)
 		'email' => $email,
 	))->execute();
 
-	$upload_new_name = "upload_$jobkey";  # can't use the jid because then after uninstall/reinstall
-	$upload_new_path = tripal_annot_build_file_path($upload_new_name);
-
 	#
 	# Copy the cleaned user file into the tripal files location. 
 	# This will be the query file for the jobs UNLESS it was a nucleotide file. 
 	# In that case ESTScan output will be in a new file with ".trans" appended,
 	# and that file will be used downstream. 
 	#
+
+	$upload_new_name = "upload_$jobkey";  # can't use the jid because then after uninstall/reinstall
+	$upload_new_path = tripal_annot_build_file_path($upload_new_name);
+
 	system("cp $cleaned_path $upload_new_path");
 	system("chmod -w $upload_new_path"); # so can't accidentally delete during debugging
 	tripal_annot_update_field($jid,"ulname",$upload_new_name);
-
-	$translated_path = $upload_new_path; 
-	if ($type == "n")
-	{
-		$translated_path .= ".trans";
-	}
 
 	#
 	# Queue the Tripal job that will do the work
@@ -378,8 +373,7 @@ END;
 }
 function run_tripal_annot($jid)
 {
-	$errlog = variable_get('annot_elog', '');
-	if (!test_errlog($errlog))
+	if (!tripal_annot_test_errlog())
 	{
 		drupal_set_message("Can't write to error log! Please configure a valid error log file.");
 		return 0;
@@ -444,12 +438,12 @@ function run_tripal_annot($jid)
 		$nextstat = array_shift($queued);	
 		array_push($running,$nexstat);
 
-		$error = run_job($nextjob,$jid,$jobkey,$errlog,$jinfo);
+		$error = run_job($nextjob,$jid,$jobkey,$jinfo);
 
 		if ($error != "")
 		{
 			array_push($failed,array_shift($running));		
-			file_put_contents($errlog,"ERROR in $nextjob for $jobkey\n$error\n###########\n",FILE_APPEND);
+			tripal_annot_log_error("ERROR in $nextjob for $jobkey\n$error\n###########\n");
 			drupal_set_message("The annotation did not complete successfully!");
 			return 0;
 		}
@@ -460,7 +454,7 @@ function run_tripal_annot($jid)
 	}
 
 }
-function run_job($name,$jid,$jobkey,$errlog,$jinfo)
+function run_job($name,$jid,$jobkey,$jinfo)
 {
 	if (0 == strncmp($name,"escan",3))
 	{
@@ -468,11 +462,11 @@ function run_job($name,$jid,$jobkey,$errlog,$jinfo)
 	}
 	else if (0 == strncmp($name,"blast",3))
 	{
-
+		$num = str_replace("blast:","",$name); # was passed as blast:DBnum
+		tripal_annot_run_blast($jid,$num,$jinfo);
 	}
 	else if (0 == strncmp($name,"ahrd",3))
 	{
-
 	}
 	else if (0 == strncmp($name,"ipr",3))
 	{
@@ -501,7 +495,7 @@ function make_jobkey()
 	$char5 = chr(ord('A') + rand(0,25));	
 	return $char1.$char2.$char3.$char4.$char5;
 }
-function tripal_annot_run_blast($jid, $num)
+function tripal_annot_run_blast($jid, $num, $jinfo)
 {
 	$dbpath = variable_get("annot_db$num","");
 	if ($dbpath == "")
@@ -513,43 +507,29 @@ function tripal_annot_run_blast($jid, $num)
 		return "BLAST database #$num not found!";
 	}
 
+	$query = tripal_annot_build_query_path($jinfo);
+
 	$blastpath = variable_get("annot_blast_path","");
 	$blastprog = "blastp";
 	if (!file_exists("$blastpath/$blastprog"))
 	{
-		return "Can't find $blastprog!");
+		return "Can't find $blastprog!";
 	}
 	$blastpath .= "/$blastprog";	
 	
 	$outname = "blast_$jid"."_$num";
 	$outpath = tripal_annot_build_file_path($outname);
-#STARTHERE where did query come from?
 	$params = " -db $dbpath -query $query -out $outpath -outfmt 6";
 	$cmd = "$blastpath $params";
 
-	$job_args = array(
-		"cmd" => $cmd,
-		"out" => $outpath,
-		"jid" => $jid);
-
-	$job_id = tripal_add_job(
-	  "annot $jid blast $num",
-	  "tripal_annot_$jid", 
-	  "run_tripal_annot_blast",
-	  $job_args,
-	  $user->uid
-	);
-	return $job_id;
-}
-function run_tripal_annot_blast($cmd, $outfile, $jid)
-{
 	system($cmd);
-	sleep(120);
+
 	if (!file_exists($outfile)) 
 	{
-		tripal_annot_append_job_error( "Annot blast failed: $cmd");
-		return FALSE;
+		tripal_annot_log_error("BLAST FAILURE\n$cmd\n");
+		return "BLAST failed to DB#$num";
 	}
+	return "";
 }
 function tripal_annot_update_field($jid,$field,$val)
 {
@@ -561,16 +541,6 @@ function tripal_annot_update_field($jid,$field,$val)
 		->condition('jid', $jid)
 		->execute();
 	
-}
-# TODO: elim
-function tripal_annot_append_job_error($jid,$newstatus)
-{
-#	$result = db_query("select status from tripal_annot where jid=$jid");
-#	$r = $result->fetchAssoc();
-#	$status = $r["status"];
-#	$status .= "$newstatus;";
-#	tripal_annot_update_field($jid,"status",$status);
-#	
 }
 
 # Check or attempt to create the files dir specified in config. 
@@ -661,9 +631,11 @@ function tripal_annot_run_escan($jid,$jobkey,$jinfo)
 	{
 		return "ESTScan failed! (no output file, or empty)";
 	}
+	return "";
 }
-function test_errlog($path)
+function tripal_annot_test_errlog()
 {
+	$path = variable_get('annot_elog', '');
 	if(!empty($path)) 
 	{
 		$ret = file_put_contents($path,"#Tripal Annotation Module Error Log\n\n");
@@ -673,4 +645,28 @@ function test_errlog($path)
 		}
 	}
 	return 0;
+}
+#
+# Log to the error log file
+# Errors including path information go here, not seen by user
+#
+function tripal_annot_log_error($err)
+{
+	$path = variable_get('annot_elog', '');
+	$ret =  file_put_contents($path,$err,FILE_APPEND);
+}
+#
+# this function builds a path to the final query file, after
+# cleaning, renaming, and possible translation through estscan
+#
+function tripal_annot_build_query_path($jinfo)
+{
+	$name = $jinfo->ulname;
+	if ($jinfo->ultype == "n") $name .= ".trans";
+	return tripal_annot_build_file_path($name);
+}
+function tripal_annot_build_blast_output_path($jid,$dbnum)
+{
+	$name = "blast_$jid"."_$dbnum";
+	return tripal_annot_build_file_path($name);
 }
