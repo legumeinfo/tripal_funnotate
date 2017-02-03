@@ -6,10 +6,6 @@
 #
 #######################################################################################
 
-#
-# TODO: reduce code duplication for job status checking, if possible
-#
-
 function annot_job_page($jobkey)
 {
 	$text = "";
@@ -38,7 +34,6 @@ END;
 
 	$jarr = $result->fetchAssoc();
 	$jid = $jarr["jid"];
-	$error = $jarr["status"];
 	$email = $jarr["email"];
 	$ul_origname = $jarr["ul_origname"];
 	$ulname = $jarr["ulname"];
@@ -50,65 +45,15 @@ END;
 	$nseqs = $jarr["ulseqs"];
 	$totlen = $jarr["ulbases"];
 	$seqtype = $jarr["ultype"];
+	$status = $jarr["status"];
+	$job_id = $jarr["joblist"];
+
 	$basetype = ($seqtype == "n" ? "basepairs" : "proteins");
-
-	$joblist = explode(",",$jarr["joblist"]);
-	$escan_jobid = 0;
-	if ($seqtype == "n")
-	{
-		$escan_jobid = array_shift($joblist); 
-	}
-	$post_jobid = array_pop($joblist);
-	if (!is_numeric($post_jobid))
-	{
-		$text = "Unable to determine postprocessing job!<p>Error occurred.<p>";
-		return $text;
-	}
-	$hmm_jobid = 0;
-	$hmm_jobid = array_pop($joblist);
-	if (!is_numeric($hmm_jobid))
-	{
-		$text = "Unable to determine HMM job!<p>Error occurred.<p>";
-		return $text;
-	}
-	$ipr_jobid = array_pop($joblist);
-	if (!is_numeric($ipr_jobid))
-	{
-		$text = "Unable to determine InterPro job!<p>Error occurred.<p>";
-		return $text;
-	}
-	$ahrd_jobid = array_pop($joblist);
-	if (!is_numeric($ahrd_jobid))
-	{
-		$text = "Unable to determine AHRD job!<p>Error occurred.<p>";
-		return $text;
-	}
-
 	$seqtypestr = ($seqtype == "n" ? "nucleotide" : "protein");
-	$text .= <<<END
-<h3>Annotation Job $jobkey</h3>
-Uploaded file: $ul_origname ($seqtypestr, $nseqs sequences, $totlen total $basetype)
 
-END;
-	if ($error == "Cancelled")
-	{
-		$text .= "<p><p>Job was cancelled by user.<p>";
-		return $text;
-	}
-	if ($error != "")
-	{
-		$earray = explode(";",$error);
-		$errstr = implode("<p>",$earray);
-		$text .= <<< END
-<hr><span style="color:red"><b>Error:</b></span><br>$errstr<hr>
-END;
-	}
-
-	$status_str = ""; 
-	$numleft = 0;
-	if ($seqtype == "n")
-	{
-		$result = db_query("select * from tripal_jobs where job_id=$escan_jobid"); 
+	# See if the tripal job is waiting, running, done, or cancelled
+	# STARTHERE
+$result = db_query("select * from tripal_jobs where job_id=$escan_jobid"); 
 		if (!$result)
 		{
 			$text .= "<p>Job <tt>$escan_jobid</tt> (ESTScan) was not found!<p>An error occurred.";
@@ -120,198 +65,18 @@ END;
 		{
 			$status .= "ESTScan cancelled\n";
 		}	
-		else if (NULL == $r->start_time)
-		{
-			$status .= "ESTScan queued\n";
-			$numleft++;
-		}
-		else
-		{
-			if (NULL == $r->end_time)
-			{
-				$status .= "ESTScan running\n";
-				$numleft++;
-			}
-			else
-			{
-				$errmsg = $r->error_msg;
-				if ($jobstat == "Error" || $errmsg != "")
-				{
-					$status .= "ESTScan ERROR: $errmsg\n";
-					$error = "ESTScan";
-				}	
-				else
-				{
-						$status .= "ESTScan done\n";
-				}
-			}
-		}
-	}
-	foreach ($joblist as $jobstr)
+
+	$text .= <<<END
+<h3>Annotation Job $jobkey</h3>
+Uploaded file: $ul_origname ($seqtypestr, $nseqs sequences, $totlen total $basetype)
+
+END;
+	if ($status == "Cancelled")
 	{
-		$jnarr = explode(":",$jobstr);
-		$jobid = $jnarr[0];
-		$dbnum = $jnarr[1];
-		$dbname = basename(variable_get("annot_db$dbnum"));
-		$result = db_query("select * from tripal_jobs where job_id=$jobid"); 
-		if (!$result)
-		{
-			$text .= "<p>Job <tt>$jobid</tt> (BLAST $dbname) was not found!<p>An error occurred.";
-			return $text;
-		}
-		$r = $result->fetchObject();			
-		$jobstat = $r->status;
-		if ($jobstat == "Cancelled")
-		{
-			$status .= "$dbname BLAST cancelled\n";
-		}	
-		else if (NULL == $r->start_time)
-		{
-			$status .= "$dbname BLAST queued\n";
-			$numleft++;
-		}
-		else
-		{
-			if (NULL == $r->end_time)
-			{
-				$status .= "$dbname BLAST running\n";
-				$numleft++;
-			}
-			else
-			{
-				$errmsg = $r->error_msg;
-				if ($jobstat == "Error" || $errmsg != "")
-				{
-					$status .= "$dbname BLAST ERROR: $errmsg\n";
-					$error = "BLAST";
-				}	
-				else
-				{
-					$status .= "$dbname BLAST done\n";
-				}
-			}
-		}
-	}
-	$result = db_query("select * from tripal_jobs where job_id=$ahrd_jobid"); 
-	if (!$result)
-	{
-		$text .= "<p>Job <tt>$ahrd_jobid</tt> (AHRD) was not found!<p>An error occurred.";
+		$text .= "<p><p>Job was cancelled by user.<p>";
 		return $text;
 	}
-	$r = $result->fetchObject();			
-	$jobstat = $r->status;
-	if ($jobstat == "Cancelled")
-	{
-		$status .= "AHRD cancelled\n";
-	}	
-	else if (NULL == $r->start_time)
-	{
-		$status .= "AHRD queued\n";
-		$numleft++;
-	}
-	else
-	{
-		if (NULL == $r->end_time)
-		{
-			$status .= "AHRD running\n";
-			$numleft++;
-		}
-		else
-		{
-			$errmsg = $r->error_msg;
-			if ($jobstat == "Error" || $errmsg != "")
-			{
-				$status .= "AHRD ERROR: $errmsg\n";
-				$error = "AHRD";
-			}	
-			else
-			{
-					$status .= "AHRD done\n";
-			}
-		}
-	}
-	$result = db_query("select * from tripal_jobs where job_id=$ipr_jobid"); 
-	if (!$result)
-	{
-		$text .= "<p>Job <tt>$ipr_jobid</tt> (InterPro) was not found!<p>An error occurred.";
-		return $text;
-	}
-	$r = $result->fetchObject();			
-	$jobstat = $r->status;
-	if ($jobstat == "Cancelled")
-	{
-		$status .= "Interpro cancelled\n";
-	}	
-	else if (NULL == $r->start_time)
-	{
-		$status .= "InterPro queued\n";
-		$numleft++;
-	}
-	else
-	{
-		if (NULL == $r->end_time)
-		{
-			$status .= "InterPro running\n";
-			$numleft++;
-		}
-		else
-		{
-			$errmsg = $r->error_msg;
-			if ($jobstat == "Error" || $errmsg != "")
-			{
-				$status .= "InterPro ERROR: $errmsg\n";
-				$error = "InterPro";
-			}	
-			else
-			{
-					$status .= "InterPro done\n";
-			}
-		}
-	}
-	if ($hmm_jobid != 0)
-	{
-		$result = db_query("select * from tripal_jobs where job_id=$hmm_jobid"); 
-		if (!$result)
-		{
-			$text .= "<p>Job <tt>$hmm_jobid</tt> (HMM) was not found!<p>An error occurred.";
-			return $text;
-		}
-		$r = $result->fetchObject();			
-		$jobstat = $r->status;
-		if ($jobstat == "Cancelled")
-		{
-			$status .= "HMM cancelled\n";
-		}	
-		else if (NULL == $r->start_time)
-		{
-			$status .= "HMM queued\n";
-			$numleft++;
-		}
-		else
-		{
-			if (NULL == $r->end_time)
-			{
-				$status .= "HMM running\n";
-				$numleft++;
-			}
-			else
-			{
-				$errmsg = $r->error_msg;
-				if ($jobstat == "Error" || $errmsg != "")
-				{
-					$status .= "HMM ERROR: $errmsg\n";
-					$error = "HMM";
-				}	 
-				else
-				{
-						$status .= "HMM done\n";
-				}
-			}
-		}
-	}
-	$result = db_query("select * from tripal_jobs where job_id=$post_jobid"); 
-	if (!$result)
-	{
+
 		$text .= "<p>Job <tt>$post_jobid</tt> (postprocess) was not found!<p>An error occurred.";
 		return $text;
 	}

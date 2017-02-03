@@ -10,26 +10,23 @@
 # TODO: column #'s of summary table are hard coded here and in jobtrack.inc
 #
 
-function run_tripal_annot_post($jid)
+function run_tripal_annot_post($jid,$jinfo)
 {
-	$res = db_query("select * from tripal_annot where jid=$jid");
-	if (!$res)
-	{
-		tripal_annot_append_job_error("Could not find job $jid in tripal_annot table!");
-		return;
-	}	
-	$r = $res->fetchObject();			
-	$seqtype = $r->ultype;	
-	$jobkey = $r->jobkey;	
-	$ahrdname = $r->ahrdname;	
-	$iprname = $r->iprname;	
-	$hmmname = $r->hmmname;	
+	$seqtype = $jinfo->ultype;	
+	$jobkey = $jinfo->jobkey;	
+	$ahrdname = $jinfo->ahrdname;	
+	$iprname = $jinfo->iprname;	
+	$hmmname = $jinfo->hmmname;	
 
 	# Scan the IPR output and collect IDs and GOs from ALL the hits that have IDs, since it appears that 
 	# all of these should be regarded as significant
 
 	$ipr_path = tripal_annot_build_file_path($iprname);
 	$fh = fopen($ipr_path,"r");
+	if ($fh == FALSE)
+	{
+		return "Failed to open InterPro output";
+	}
 	$alliprs = array();
 	$allgos = array();
 	while ( ($line = fgets($fh)) != FALSE)
@@ -74,6 +71,10 @@ function run_tripal_annot_post($jid)
 	{
 		$hmm_path = tripal_annot_build_file_path($hmmname);
 		$fh = fopen($hmm_path,"r");
+		if ($fh == FALSE)
+		{
+			return "Failed to open HMMer output";
+		}
 		$best_hmm_eval = array();
 		$best_hmm_score = array();
 		while ( ($line = fgets($fh)) != FALSE)
@@ -112,7 +113,15 @@ function run_tripal_annot_post($jid)
 	$sum_path = tripal_annot_build_file_path($sum_name);
 
 	$fh1 = fopen($ahrd_path,"r");
+	if ($fh1 == FALSE)
+	{
+		return "Failed to open AHRD output";
+	}
 	$fh2 = fopen($sum_path,"w");
+	if ($fh2 == FALSE)
+	{
+		return "Unable to create summary output file!";
+	}
 
 	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Qual\tAHRD Descriptor\tInterpro-ID\tGO Terms\tGene Family\n");
 	$got_header == 0;
@@ -154,7 +163,7 @@ function run_tripal_annot_post($jid)
 	fclose($fh2);
 
 	tripal_annot_update_field($jid,"sumname",$sum_name);
-
+	return "";
 }
 
 #
