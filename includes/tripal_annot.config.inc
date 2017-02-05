@@ -627,6 +627,7 @@ function annot_config_form_validate($form, &$form_state)
 		if($ret != FALSE && file_exists($path) ) 
 		{
 			variable_set('annot_elog', $path);
+			system("chmod 755 $path");
 		}
 		else 
 		{

@@ -82,6 +82,16 @@ Please specify a suitable directory in configuration.
 END;
 		return $text;
 	}
+	if (!tripal_annot_test_errlog())
+	{
+		$text .= <<<END
+<pre>
+The service is not ready. 
+Please specify a suitable error log file in configuration.  
+</pre>
+END;
+		return $text;
+	}
 
 	# First make sure the configuration is ok
 	$error = validate_config();
@@ -303,4 +313,17 @@ function path_from_fid($fid)
 {
 	$fobj = file_load($fid);
 	return drupal_realpath($fobj->uri);
+}
+function tripal_annot_test_errlog()
+{
+	$path = variable_get('annot_elog', '');
+	if(!empty($path)) 
+	{
+		if(file_exists($path) ) 
+		{
+			system("chmod 755 $path");
+			return 1;
+		}
+	}
+	return 0;
 }

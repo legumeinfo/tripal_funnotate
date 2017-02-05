@@ -45,103 +45,67 @@ END;
 	$nseqs = $jarr["ulseqs"];
 	$totlen = $jarr["ulbases"];
 	$seqtype = $jarr["ultype"];
-	$status = $jarr["status"];
+	$status = $jarr["status"];   # this is a list that the job updates showing progress
 	$job_id = $jarr["joblist"];
 
 	$basetype = ($seqtype == "n" ? "basepairs" : "proteins");
 	$seqtypestr = ($seqtype == "n" ? "nucleotide" : "protein");
-
-	# See if the tripal job is waiting, running, done, or cancelled
-	# STARTHERE
-$result = db_query("select * from tripal_jobs where job_id=$escan_jobid"); 
-		if (!$result)
-		{
-			$text .= "<p>Job <tt>$escan_jobid</tt> (ESTScan) was not found!<p>An error occurred.";
-			return $text;
-		}
-		$r = $result->fetchObject();			
-		$jobstat = $r->status;
-		if ($jobstat == "Cancelled")
-		{
-			$status .= "ESTScan cancelled\n";
-		}	
 
 	$text .= <<<END
 <h3>Annotation Job $jobkey</h3>
 Uploaded file: $ul_origname ($seqtypestr, $nseqs sequences, $totlen total $basetype)
 
 END;
-	if ($status == "Cancelled")
+
+	# See if the tripal job is waiting, running, done, or cancelled
+	$result = db_query("select * from tripal_jobs where job_id=$job_id"); 
+	if (!$result)
 	{
-		$text .= "<p><p>Job was cancelled by user.<p>";
+		$text .= "<p>Error - the annotation job was not found! (<tt>id:$job_id</tt>)";
 		return $text;
 	}
-
-		$text .= "<p>Job <tt>$post_jobid</tt> (postprocess) was not found!<p>An error occurred.";
+	$tj_info = $result->fetchObject();			
+	if ($status == "Cancelled") # this is updated immediately unlike (perhaps) the tripal_jobs status
+	{
+		$text .= "<p><p>The annotation was cancelled.<p>";
 		return $text;
 	}
-	$r = $result->fetchObject();			
-	$jobstat = $r->status;
-	if ($jobstat == "Cancelled")
+	else if ($tj_info->start_time == NULL)
 	{
-		$status .= "Postprocessing cancelled\n";
-	}	
-	else if (NULL == $r->start_time)
-	{
-		$status .= "Postprocessing queued\n";
-		$numleft++;
+		$text .= "<p><p>The annotation job is queued and will begin shortly.<p>";
+		return $text;
 	}
-	else
+	else if ($tj_info->status != "Completed")
 	{
-		if (NULL == $r->end_time)
-		{
-			$status .= "Postprocessing running\n";
-			$numleft++;
-		}
-		else
-		{
-			$errmsg = $r->error_msg;
-			if ($jobstat == "Error" || $errmsg != "")
-			{
-				$status .= "Postprocessing ERROR: $errmsg\n";
-				$error = "Postprocessing";
-			}	
-			else
-			{
-					$status .= "Postprocessing done\n";
-			}
-		}
-	}
-
-	#
-	# Jobs are still running so just show the status of the jobs
-	#
-	if ($numleft > 0) 
-	{
-		$text .= $refresh_text;
+		#
+		# It's either in progress, or it erred out.
+		# In either case, show the last status string that was passed from the job handler
+		# because (in case of error) it should show which of the tasks failed.
+		#
 		$text .= <<<END
-<pre>
-Job in progress: 
-$status
-</pre>
-
-END;
-		$text .= drupal_render(drupal_get_form('annot_cancel_form', $jid, $jobkey));
-		return $text;
-	}
-	if ($error != "")
-	{
-		$text .= <<< END
 <pre>
 Job status: 
 $status
 </pre>
+
+END;
+		if ($tj_info->status == "Error")
+		{
+			# in fact the job is done with error, so show an alarming message and end
+			$text .= <<< END
+<p>
 <span style="color:red"><b>Job did not complete successfully!</b></span><br>
 END;
+		}
+		else
+		{
+			# It's still going, no error, so show the cancel button
+			$text .= drupal_render(drupal_get_form('annot_cancel_form', $jid, $jobkey));
+		}
 		return $text;
 	}
 	#
-	# All done! Notify and show final results. 
+	# The job is finished with apparent success. Notify and show final results. 
 	#
 	if ($email != "")
 	{
@@ -373,14 +337,9 @@ function annot_cancel_form_submit($form, &$form_state)
 	}
 	$jarr = $result->fetchAssoc();
 	$status = $jarr["status"];
-	$joblist = $jarr["joblist"];
+	$jobid = $jarr["joblist"];
 
-	$jobs = array_reverse(explode(",",$joblist));
-	foreach ($jobs as $jobstr)
-	{
-		$jobid = preg_replace("/:.*/","",$jobstr); # some of them are jobid:number
-		tripal_cancel_job($jobid,FALSE);	
-	}
+	tripal_cancel_job($jobid,FALSE);	
 	tripal_annot_update_field($jid,"status","Cancelled");
 
 	drupal_goto("/annot/job/$jobkey");

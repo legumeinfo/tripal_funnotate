@@ -373,11 +373,6 @@ END;
 }
 function run_tripal_annot($jid)
 {
-	if (!tripal_annot_test_errlog())
-	{
-		drupal_set_message("Can't write to error log! Please configure a valid error log file.");
-		return 0;
-	}
 	#
 	# INITIALIZING
 	#
@@ -391,7 +386,6 @@ function run_tripal_annot($jid)
 	$joblist = array(); 				
 	$queued = array(); $done = array();	
 	$running = array(); $failed = array(); # these could be strings as long as no parallel jobs
-	$dblist = array(); # db numbers used in blasts, needed later for ahrd
 
 	# ESTScan
 	if ($type == "n")
@@ -412,7 +406,6 @@ function run_tripal_annot($jid)
 			}
 			array_push($joblist, "blast:$j");
 			array_push($queued, basename($dbpath)." BLAST");
-			array_push($dblist,$j);
 		}
 	}
 	# AHRD
@@ -439,7 +432,7 @@ function run_tripal_annot($jid)
 		array_push($running,$nexstat);
 
 		tripal_annot_update_job_status($jid,$queued,$running,$failed,$done,"");
-
+die("");
 		$error = tripal_annot_run_job($nextjob,$jid,$jinfo);
 
 		if ($error != "")
@@ -464,46 +457,57 @@ function run_tripal_annot($jid)
 #
 function tripal_annot_update_job_status($jid,&$queued,&$running,&$failed,&$done,$error)
 {
-	$status = implode(" DONE\n",$done)." DONE\n"; 
+	$status = "";
+	if (count($done) > 0) 
+	{
+		$status .= implode(" DONE\n",$done)." DONE\n"; 
+	}
 	if ($error != "")
 	{
 		$status .= implode(" FAILED\n",$failed)." FAILED\n"; # overkill since should be max one failure
-		$status .= "Error Message:$error\n";
 	}
-	else
+	if (count($running) > 0)
 	{
 		$status .= implode(" RUNNING\n",$running)." RUNNING\n"; # overkill since should be max one running 
+	}
+	if (count($queued) > 0)
+	{
 		$status .= implode(" QUEUED\n",$queued)." QUEUED\n"; 
-	}	
+	}
+	if ($error != "")
+	{
+		$status .= "Error Message:$error\n";
+	}
 	tripal_annot_update_field($jid,"status",$status);
 }
 function tripal_annot_run_job($name,$jid,$jinfo)
 {
 	if (0 == strncmp($name,"escan",3))
 	{
-		tripal_annot_run_escan($jid,$jinfo);
+		return tripal_annot_run_escan($jid,$jinfo);
 	}
 	else if (0 == strncmp($name,"blast",3))
 	{
 		$num = str_replace("blast:","",$name); # was passed as blast:DBnum
-		tripal_annot_run_blast($jid,$num,$jinfo);
+		return tripal_annot_run_blast($jid,$num,$jinfo);
 	}
 	else if (0 == strncmp($name,"ahrd",3))
 	{
-		tripal_annot_run_ahrd($jid,$jinfo);
+		return tripal_annot_run_ahrd($jid,$jinfo);
 	}
 	else if (0 == strncmp($name,"ipr",3))
 	{
-		tripal_annot_run_ipr($jid,$jinfo);
+		return tripal_annot_run_ipr($jid,$jinfo);
 	}
 	else if (0 == strncmp($name,"hmm",3))
 	{
-		tripal_annot_run_hmm($jid,$jinfo);
+		return tripal_annot_run_hmm($jid,$jinfo);
 	}
 	else if (0 == strncmp($name,"post",3))
 	{
-		tripal_annot_run_post($jid,$jinfo);
+		return tripal_annot_run_post($jid,$jinfo);
 	}
+	die ("BAD JOB NAME");
 }
 function jobkey_exists($key)
 {
@@ -551,7 +555,7 @@ function tripal_annot_run_blast($jid, $num, $jinfo)
 
 	system($cmd);
 
-	if (!file_exists($outfile)) 
+	if (!file_exists($outpath)) 
 	{
 		tripal_annot_log_error("BLAST FAILURE\n$cmd\n");
 		return "BLAST failed to DB#$num";
@@ -660,19 +664,6 @@ function tripal_annot_run_escan($jid,$jinfo)
 		return "ESTScan failed! (no output file, or empty)";
 	}
 	return "";
-}
-function tripal_annot_test_errlog()
-{
-	$path = variable_get('annot_elog', '');
-	if(!empty($path)) 
-	{
-		$ret = file_put_contents($path,"#Tripal Annotation Module Error Log\n\n");
-		if($ret != FALSE && file_exists($path) ) 
-		{
-			return 1;
-		}
-	}
-	return 0;
 }
 #
 # Log to the error log file
