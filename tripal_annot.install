@@ -95,9 +95,15 @@ function tripal_annot_schema()
 		'default' => '',
       ),
       'status' => array(
-        'description' => t('Status of the job)'),
+        'description' => t('Status of the job (=list of queued, running, etc))'),
         'type' => 'varchar',
-        'length' => 5000,
+        'length' => 1000,
+		'default' => '',
+      ),
+      'error' => array(
+        'description' => t("Error string - so that we don't rely entirely on tripal job error flag"),
+        'type' => 'varchar',
+        'length' => 100,
 		'default' => '',
       ),
       'joblist' => array(

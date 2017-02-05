@@ -8,7 +8,7 @@
 #
 ##################################################################################
 
-function run_tripal_annot_ahrd($jid,$jinfo)
+function tripal_annot_run_ahrd($jid,$jinfo)
 {
 	$ymlfile = variable_get("annot_yml");
 	if (!file_exists($ymlfile))
@@ -53,7 +53,7 @@ function run_tripal_annot_ahrd($jid,$jinfo)
 				break;
 			}
 		}
-		$outpath = tripal_annot_build_blast_output_path($jid,$dbnum);
+		$outpath = tripal_annot_build_blast_output_path($jobkey,$dbnum);
 		if (!file_exists($outpath))
 		{
 			tripal_annot_log_error("Blast output $outpath (db$i) not found!");
@@ -65,7 +65,7 @@ function run_tripal_annot_ahrd($jid,$jinfo)
 
 	$yamstr = Spyc::YAMLDump($yaml_obj,2,0);
 
-	$yamtmp = file_directory_temp()."/yamldump.txt"; # TODO: remove
+	$yamtmp = file_directory_temp()."/yamldump.txt"; # TODO: not thread safe
 	file_put_contents($yamtmp,$yamstr);
 	system("chmod 755 $yamtmp");
 
@@ -107,7 +107,7 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 #	Callback function for running InterPro
 #
 # TODO: threads
-function run_tripal_annot_ipr($jid,$jinfo)
+function tripal_annot_run_ipr($jid,$jinfo)
 {
 	$iprdir = variable_get("annot_iprdir","");
 	if (!file_exists("$iprdir/interproscan.sh"))
@@ -116,18 +116,20 @@ function run_tripal_annot_ipr($jid,$jinfo)
 	}
 	$iprpath = "$iprdir/interproscan.sh";
 	
-	$outname = "ipr_$jid.xml";
+	$jobkey = $jinfo->jobkey;	
+	$outname = "ipr_$jobkey.xml";
 	$outpath = tripal_annot_build_file_path($outname);
 
 	$iprparam = variable_get("annot_iprparam");
 	$query_path = tripal_annot_build_query_path($jinfo);
 	$params = " -i $query_path -o $outpath -f XML $iprparam ";
+	$cmd = "$iprpath $params";
+	file_put_contents("/tmp/iprcmd.txt",$cmd); # TODO
 
-	file_put_contents("/tmp/ipr.txt",$cmd); # TODO
-
-	$jobkey = $jinfo->jobkey;	
 
 	$propsdir = variable_get("annot_iprcfgdir");
+	$threads = variable_get("annot_nthread",1);
+	setup_ipr_properties($propsdir,$threads);
 	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" ); # TODO
 	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
 	if (!file_exists($outpath))
@@ -141,7 +143,7 @@ function run_tripal_annot_ipr($jid,$jinfo)
 	$rawname = "ipr_$jobkey.txt";
 	$rawpath = tripal_annot_build_file_path($rawname);
 	$cmd = "$iprpath -i $outpath -mode convert -f RAW -o $rawpath";
-	file_put_contents("/tmp/iprcmd.txt",$cmd); # TODO
+	file_put_contents("/tmp/iprcmd.txt",$cmd,FILE_APPEND); # TODO
 
 	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr2.txt 2>& 1" ); # TODO
 	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
@@ -154,7 +156,7 @@ function run_tripal_annot_ipr($jid,$jinfo)
 	return "";
 }
 
-function run_tripal_annot_hmm($jid,$jinfo)
+function tripal_annot_run_hmm($jid,$jinfo)
 {
 	$hmmdir = variable_get("annot_hmmdir","");
 	$hmmsearchpath = "$hmmdir/binaries/hmmsearch";
@@ -170,7 +172,8 @@ function run_tripal_annot_hmm($jid,$jinfo)
 	$outname = "hmm_$jobkey.tbl";
 	$outpath = tripal_annot_build_file_path($outname);
 	$query_path = tripal_annot_build_query_path($jinfo);
-	$params = " --tblout $outpath $hmmdb $query_path ";
+	$threads = variable_get("annot_nthread",1);
+	$params = " --cpu $threads --tblout $outpath $hmmdb $query_path "; # TODO: cpu not working?
 	$cmd = "$hmmsearchpath $params";
 
 	file_put_contents("/tmp/hmmcmd.txt",$cmd); # TODO
@@ -178,7 +181,8 @@ function run_tripal_annot_hmm($jid,$jinfo)
 	##system("$cmd > /dev/null 2>& 1" );
 	if (!file_exists($outpath))
 	{
-		#return "HMMer failed: no output";   # TODO: does HMMer generate a file if no results?
+		#file_put_contents($outpath,""); # TODO: does HMMer generate a file if no results?
+		return "HMMer failed: no output";   
 	}
 	else
 	{
@@ -186,4 +190,37 @@ function run_tripal_annot_hmm($jid,$jinfo)
 	}
 	return "";
 
+}
+#TODO: not entirely thread safe however likelihood of conflict extremely low
+function setup_ipr_properties($dir,$threads)
+{
+	$propstext = <<<END
+#Number of embedded workers at start time
+number.of.embedded.workers=1
+#Maximum number of embedded workers
+maxnumber.of.embedded.workers=$threads
+
+#hmmer cpu options for the different jobs
+hmmer3.hmmsearch.cpu.switch.pfama=--cpu 1
+hmmer3.hmmsearch.cpu.switch.tigrfam=--cpu 1
+hmmer3.hmmsearch.cpu.switch.gene3d=--cpu 1
+hmmer3.hmmsearch.cpu.switch.superfamily=--cpu 1
+
+hmmer2.hmmpfam.cpu.switch.smart=--cpu 1
+hmmer2.hmmpfam.cpu.switch.pirsf=--cpu 1
+
+#blastall cpu options
+blastall.cpu.switch.pirsf=-a 1
+
+#panther binary cpu options (for blastall and hmmsearch)
+panther.binary.cpu.switch=-c 1
+END;
+	
+	$iprdir = "$dir/.interproscan-5";
+	if (!is_dir($dir))
+	{
+		mkdir($dir);
+	}
+	$propfile = "$iprdir/interproscan.properties";
+	file_put_contents($propfile,$propstext);
 }

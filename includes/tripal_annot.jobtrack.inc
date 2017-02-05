@@ -46,6 +46,7 @@ END;
 	$totlen = $jarr["ulbases"];
 	$seqtype = $jarr["ultype"];
 	$status = $jarr["status"];   # this is a list that the job updates showing progress
+	$errstr = $jarr["error"];   # this is the error message if one of the tasks failed
 	$job_id = $jarr["joblist"];
 
 	$basetype = ($seqtype == "n" ? "basepairs" : "proteins");
@@ -57,7 +58,19 @@ Uploaded file: $ul_origname ($seqtypestr, $nseqs sequences, $totlen total $baset
 
 END;
 
-	# See if the tripal job is waiting, running, done, or cancelled
+	#
+	# See if the tripal job is waiting, running, cancelled, done (with or without error)
+	#
+	if ($status == "Cancelled")  
+	{
+		# Note that this status is placed by our code rather than waiting for
+		# Tripal to cancel the job. So the job may actually still be running. 
+		
+		$text .= "<p><p>The annotation was cancelled.<p>";
+		return $text;
+	}
+
+	# Now get status information from Tripal jobs itself
 	$result = db_query("select * from tripal_jobs where job_id=$job_id"); 
 	if (!$result)
 	{
@@ -65,22 +78,18 @@ END;
 		return $text;
 	}
 	$tj_info = $result->fetchObject();			
-	if ($status == "Cancelled") # this is updated immediately unlike (perhaps) the tripal_jobs status
-	{
-		$text .= "<p><p>The annotation was cancelled.<p>";
-		return $text;
-	}
-	else if ($tj_info->start_time == NULL)
+
+	if ($tj_info->start_time == NULL)
 	{
 		$text .= "<p><p>The annotation job is queued and will begin shortly.<p>";
 		return $text;
 	}
-	else if ($tj_info->status != "Completed")
+	else if ($tj_info->status != "Completed" || $errstr != "")
 	{
 		#
 		# It's either in progress, or it erred out.
-		# In either case, show the last status string that was passed from the job handler
-		# because (in case of error) it should show which of the tasks failed.
+		#
+		# In either case, we show the last status string so we can what task it is (was) on. 
 		#
 		$text .= <<<END
 <pre>
@@ -89,24 +98,32 @@ $status
 </pre>
 
 END;
-		if ($tj_info->status == "Error")
+		if ($tj_info->status == "Error" || $errstr != "")
 		{
-			# in fact the job is done with error, so show an alarming message and end
+			#
+			# An error was reported, show alarming message and end
+			#
+			if ($errstr == "") $errstr = "no text available";
 			$text .= <<< END
 <p>
 <span style="color:red"><b>Job did not complete successfully!</b></span><br>
+Error text: $errstr
 END;
 		}
 		else
 		{
+			#
 			# It's still going, no error, so show the cancel button
+			#
 			$text .= drupal_render(drupal_get_form('annot_cancel_form', $jid, $jobkey));
 		}
 		return $text;
 	}
+
 	#
 	# The job is finished with apparent success. Notify and show final results. 
 	#
+
 	if ($email != "")
 	{
 		$msg = <<< END
@@ -119,11 +136,12 @@ END;
 	}
 
 	$url_ahrd = tripal_annot_file_url($ahrdname);
-	$url_blast = tripal_annot_file_url($blastname);
 	$url_ipr = tripal_annot_file_url($iprname);
 	$url_hmm = tripal_annot_file_url($hmmname);
 	$url_sum = tripal_annot_file_url($sumname);
 	$url_escan = tripal_annot_file_url("$ulname.trans");
+
+	$blast_file_links = build_blast_file_links($jobkey);
 
 	$stats = array();
 	$err = annot_calc_stats($stats, $jarr, $sumname);
@@ -154,7 +172,7 @@ if ($seqtype == "n")
 
 	$text .= <<<END
 <p>
-<a href="$url_blast" style="text-decoration:underline">BLAST output files</a> (tar/gzip archive)
+BLAST output files: $blast_file_links
 <br>
 <a href="$url_ipr" style="text-decoration:underline">InterPro output</a> (txt file, RAW format)
 <br>
@@ -343,4 +361,21 @@ function annot_cancel_form_submit($form, &$form_state)
 	tripal_annot_update_field($jid,"status","Cancelled");
 
 	drupal_goto("/annot/job/$jobkey");
+}
+function build_blast_file_links($jobkey)
+{
+	$links = array();
+	for ($j = 1; $j <= 4; $j++) # TODO: blasts hardcoded to 4 max
+	{
+		$dbpath = variable_get("annot_db$j","");
+		if ($dbpath != "")
+		{
+			$text = basename($dbpath);
+			$name = "blast_$jobkey"."_$j";
+			$url = tripal_annot_file_url($name);
+			$link = "<a href='$url' style='text-decoration:underline'>$text</a>";
+			array_push($links,$link);
+		}
+	}
+	return implode(", ",$links);
 }

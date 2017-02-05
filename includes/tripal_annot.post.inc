@@ -10,7 +10,7 @@
 # TODO: column #'s of summary table are hard coded here and in jobtrack.inc
 #
 
-function run_tripal_annot_post($jid,$jinfo)
+function tripal_annot_run_post($jid,$jinfo)
 {
 	$seqtype = $jinfo->ultype;	
 	$jobkey = $jinfo->jobkey;	

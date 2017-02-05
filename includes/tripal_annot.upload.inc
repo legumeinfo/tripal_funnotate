@@ -1,4 +1,5 @@
 <?php
+error_reporting(E_STRICT);
 
 #####################################################################################
 #
@@ -382,13 +383,12 @@ function run_tripal_annot($jid)
 	#
 	$jinfo = tripal_annot_get_job_info($jid,"");
 	$jobkey = $jinfo->jobkey;
-
 	$joblist = array(); 				
 	$queued = array(); $done = array();	
 	$running = array(); $failed = array(); # these could be strings as long as no parallel jobs
 
 	# ESTScan
-	if ($type == "n")
+	if ($jinfo->ultype == "n")
 	{
 		array_push($joblist, "escan");	
 		array_push($queued, "ESTScan");	
@@ -429,11 +429,10 @@ function run_tripal_annot($jid)
 	{
 		$nextjob = array_shift($joblist);
 		$nextstat = array_shift($queued);	
-		array_push($running,$nexstat);
+		array_push($running,$nextstat);
 
 		tripal_annot_update_job_status($jid,$queued,$running,$failed,$done,"");
-die("");
-		$error = tripal_annot_run_job($nextjob,$jid,$jinfo);
+		$error = tripal_annot_run_job($nextjob,$jid);
 
 		if ($error != "")
 		{
@@ -441,6 +440,7 @@ die("");
 			tripal_annot_log_error("ERROR in $nextjob for $jobkey\n$error\n###########\n");
 			drupal_set_message("The annotation did not complete successfully!");
 			tripal_annot_update_job_status($jid,$queued,$running,$failed,$done,$error);
+			tripal_annot_update_field($jid,"error",$error);
 			return 0;
 		}
 		else
@@ -448,7 +448,7 @@ die("");
 			array_push($done,array_shift($running));
 		}
 	}
-
+	return 1;
 }
 #
 # Prepare the user-facing status display, which is a list of jobs and their status,
@@ -462,7 +462,7 @@ function tripal_annot_update_job_status($jid,&$queued,&$running,&$failed,&$done,
 	{
 		$status .= implode(" DONE\n",$done)." DONE\n"; 
 	}
-	if ($error != "")
+	if (count($failed) > 0)
 	{
 		$status .= implode(" FAILED\n",$failed)." FAILED\n"; # overkill since should be max one failure
 	}
@@ -476,12 +476,13 @@ function tripal_annot_update_job_status($jid,&$queued,&$running,&$failed,&$done,
 	}
 	if ($error != "")
 	{
-		$status .= "Error Message:$error\n";
+		#$status .= "Error Message:$error\n";
 	}
 	tripal_annot_update_field($jid,"status",$status);
 }
-function tripal_annot_run_job($name,$jid,$jinfo)
+function tripal_annot_run_job($name,$jid)
 {
+	$jinfo = tripal_annot_get_job_info($jid,""); # have to get it again to get the names of prior outputs
 	if (0 == strncmp($name,"escan",3))
 	{
 		return tripal_annot_run_escan($jid,$jinfo);
@@ -525,6 +526,7 @@ function make_jobkey()
 }
 function tripal_annot_run_blast($jid, $num, $jinfo)
 {
+	$jobkey = $jinfo->jobkey;
 	$dbpath = variable_get("annot_db$num","");
 	if ($dbpath == "")
 	{
@@ -546,8 +548,7 @@ function tripal_annot_run_blast($jid, $num, $jinfo)
 	}
 	$blastpath .= "/$blastprog";	
 	
-	$outname = "blast_$jid"."_$num";
-	$outpath = tripal_annot_build_file_path($outname);
+	$outpath = tripal_annot_build_blast_output_path($jobkey,$num);
 
 	$threads = variable_get("annot_nthread",1);
 	$params = " -db $dbpath -query $query -out $outpath -outfmt 6 -num_threads $threads ";
@@ -672,6 +673,10 @@ function tripal_annot_run_escan($jid,$jinfo)
 function tripal_annot_log_error($err)
 {
 	$path = variable_get('annot_elog', '');
+	if (substr($err,-1) != "\n")
+	{
+		$err .= "\n";
+	}
 	$ret =  file_put_contents($path,$err,FILE_APPEND);
 }
 #
@@ -684,8 +689,18 @@ function tripal_annot_build_query_path($jinfo)
 	if ($jinfo->ultype == "n") $name .= ".trans";
 	return tripal_annot_build_file_path($name);
 }
-function tripal_annot_build_blast_output_path($jid,$dbnum)
+function tripal_annot_build_blast_output_path($jobkey,$dbnum)
 {
-	$name = "blast_$jid"."_$dbnum";
+	$name = "blast_$jobkey"."_$dbnum";
 	return tripal_annot_build_file_path($name);
+}
+function tripal_annot_dump_object($title,$obj)
+{
+	$text = print_r($obj,TRUE);
+	tripal_annot_log_error("---------------------\n$title\n$text\n---------------\n");
+}
+function tripal_annot_clear_errlog()
+{
+	$path = variable_get('annot_elog', '');
+	file_put_contents($path,"");
 }
