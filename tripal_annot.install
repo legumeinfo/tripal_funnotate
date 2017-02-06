@@ -114,13 +114,13 @@ function tripal_annot_schema()
       ),
       'start_time' => array(
         'description' => t('Unix start time of job'),
-        'type' => 'integer',
-		'default' => '0',
+        'type' => 'int',
+		'default' => 0,
       ),
       'end_time' => array(
         'description' => t('Unix end time of job'),
-        'type' => 'integer',
-		'default' => '0',
+        'type' => 'int',
+		'default' => 0,
       ),
    ), 
     'primary key' => array('jid'),

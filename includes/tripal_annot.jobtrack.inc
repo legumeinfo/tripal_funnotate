@@ -48,6 +48,8 @@ END;
 	$status = $jarr["status"];   # this is a list that the job updates showing progress
 	$errstr = $jarr["error"];   # this is the error message if one of the tasks failed
 	$job_id = $jarr["joblist"];
+	$start_time = $jarr["start_time"];
+	$end_time = $jarr["end_time"];
 
 	$basetype = ($seqtype == "n" ? "basepairs" : "proteins");
 	$seqtypestr = ($seqtype == "n" ? "nucleotide" : "protein");
@@ -81,7 +83,8 @@ END;
 
 	if ($tj_info->start_time == NULL)
 	{
-		$text .= "<p><p>The annotation job is queued and will begin shortly.<p>";
+		$text .= "<p><p>The annotation job is queued and will begin shortly.<br>This page will automatically refresh.<p>";
+		$text .= $refresh_text;
 		return $text;
 	}
 	else if ($tj_info->status != "Completed" || $errstr != "")
@@ -113,8 +116,13 @@ END;
 		else
 		{
 			#
-			# It's still going, no error, so show the cancel button
+			# It's still going, no error, so show the cancel button, and set to autorefresh
 			#
+			$run_secs = time() - $start_time;
+			$run_mins = floor($run_secs/60);
+			$run_secs -= 60*$run_mins;
+			$text .= $refresh_text;
+			$text .= "<span style='font-size:11px'>job duration:$run_mins minutes, $run_secs seconds</span><br>"; 
 			$text .= drupal_render(drupal_get_form('annot_cancel_form', $jid, $jobkey));
 		}
 		return $text;
@@ -248,6 +256,12 @@ while ( ($line = fgets($fh)) != FALSE)
 	$text .= $row;
 }
 $text .= "\n</table>\n";
+
+$run_secs = $end_time - $start_time;
+$run_mins = floor($run_secs/60);
+$run_secs -= 60*$run_mins;
+$text .= "<span style='font-size:11px'>job duration:$run_mins minutes, $run_secs seconds</span><br>"; 
+
 $text .= <<<END
 <a name="quality"></a>
 <b>AHRD Quality Scores:</b>
