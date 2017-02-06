@@ -107,10 +107,20 @@ function tripal_annot_schema()
 		'default' => '',
       ),
       'joblist' => array(
-        'description' => t('List of tripal jobs (only one now)'),
+        'description' => t('The Tripal job_id used for this job (formerly a list)'),
         'type' => 'varchar',
         'length' => 255,
 		'default' => '',
+      ),
+      'start_time' => array(
+        'description' => t('Unix start time of job'),
+        'type' => 'integer',
+		'default' => '0',
+      ),
+      'end_time' => array(
+        'description' => t('Unix end time of job'),
+        'type' => 'integer',
+		'default' => '0',
       ),
    ), 
     'primary key' => array('jid'),

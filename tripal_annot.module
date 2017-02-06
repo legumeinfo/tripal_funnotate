@@ -207,17 +207,6 @@ function tripal_annot_mail($key, &$message, $params)
 
 function annot_update_schema()
 {
-	if (!db_field_exists("tripal_annot","joblist"))
-	{
-      	$spec = array(
-        'description' => t('List of running job numbers'),
-        'type' => 'varchar',
-        'length' => 255,
-		'default' => '',
-      );
-	db_add_field("tripal_annot","joblist",$spec);
-
-	}
 }
 function validate_config()
 {

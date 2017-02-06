@@ -316,6 +316,7 @@ function annot_upload_form_submit($form, &$form_state)
 		$jobkey  = make_jobkey();
 	}
 
+	$start_time = time();
 	$jid = db_insert('tripal_annot')->fields(array(
   		'jobkey' => $jobkey,
 		'ultype' => $type,
@@ -323,6 +324,7 @@ function annot_upload_form_submit($form, &$form_state)
 		'ul_origname' => $ul_origname,
 		'ulseqs' => $nseqs,
 		'email' => $email,
+		'start_time' => $start_time
 	))->execute();
 
 	#
@@ -405,7 +407,7 @@ function run_tripal_annot($jid)
 				return 0;
 			}
 			array_push($joblist, "blast:$j");
-			array_push($queued, basename($dbpath)." BLAST");
+			array_push($queued, "BLAST ".basename($dbpath));
 		}
 	}
 	# AHRD
@@ -431,6 +433,12 @@ function run_tripal_annot($jid)
 		$nextstat = array_shift($queued);	
 		array_push($running,$nextstat);
 
+		# Check if it was cancelled since Tripal will not actually terminate in-progress job
+		$jinfo = tripal_annot_get_job_info($jid,"");
+		if ($jinfo->status == "Cancelled")
+		{
+			return 0;
+		}
 		tripal_annot_update_job_status($jid,$queued,$running,$failed,$done,"");
 		$error = tripal_annot_run_job($nextjob,$jid);
 
@@ -448,6 +456,16 @@ function run_tripal_annot($jid)
 			array_push($done,array_shift($running));
 		}
 	}
+	
+	$end_time = time();
+	db_update('tripal_annot')
+		->fields(array(
+	        "end_time" => $end_time 
+	        )
+		)
+		->condition('jid', $jid)
+		->execute();
+	
 	return 1;
 }
 #
