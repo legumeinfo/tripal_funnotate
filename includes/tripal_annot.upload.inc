@@ -156,8 +156,10 @@ END;
 			$seqList = implode("<br>\n",$wrongTypeSeqs);
 			$text .= <<<END
 <p><b>Warning:</b><br>
-The following sequences look like nucleotide sequences. Please verify that they <br>
-are correct protein sequences:<br> $seqList <p>
+The following sequences do not look like protein sequences. Please verify that they <br>
+are correct protein sequences, or 
+<a href="/annot" style="text-decoration:underline">start over</a>:
+<br> $seqList <p>
 END;
 		}
 		if ($seqType == "n" && count($wrongTypeSeqs) > 0)
@@ -166,7 +168,9 @@ END;
 			$text .= <<<END
 <p><b>Warning:</b><br>
 The following sequences do not look like nucleotide sequences. Please verify that they <br>
-are correct nucleotide sequences:<br> $seqList <p>
+are correct nucleotide sequences, or 
+<a href="/annot" style="text-decoration:underline">start over</a>:
+<br> $seqList <p>
 END;
 		}
 		$text .= <<<END

@@ -104,8 +104,15 @@ END;
 	$form_state = array();
 	$text .= <<<END
 Upload a file of protein or nucleotide sequences and have them annotated  using 
-LIS legume resources<br>
- (see <a href="#pipeline">pipeline description</a> below).
+LIS legume resources.
+<p>
+<p>
+Because this service involves several computationally-intensive searches 
+<br>
+(see <a href="#pipeline">pipeline description</a> below),
+results can take from several minutes to 
+<br>
+several hours, depending on the size of your query. Thanks for your patience.
 <p>
 END;
 	$text .= drupal_render(drupal_get_form('annot_start_form')); 
@@ -151,7 +158,7 @@ function annot_start_form($form,&$form_state)
       	'#type' => 'managed_file',
       	'#description' => t(''),
       	'#upload_validators' => array(
-        'file_validate_extensions' => array('fasta fna fa fas seq txt'),
+        'file_validate_extensions' => array('fasta ffa fna fa fas seq txt'),
 			'file_validate_size' => array(1024*$maxupload)
       ),
 		'#progress_indicator' => 'bar',
