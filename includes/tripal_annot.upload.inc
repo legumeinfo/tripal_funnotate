@@ -175,7 +175,9 @@ END;
 		}
 		$text .= <<<END
 <p>
-<b>Please verify that this is correct before starting your job.</b>
+<b>Please verify that this is correct before starting your job</b> 
+(or, 
+<a href="/annot" style="text-decoration:underline">start over</a>)
 <p>
 END;
 		$text .= drupal_render(drupal_get_form('annot_upload_form', 

@@ -275,7 +275,7 @@ The meaning by position is as follows:
 2	Overlap of the blast result is at least 60%
 3	Top token score of assigned descriptor is at least 0.5
 </pre>
-For more about the AHRD algorithm, see
+For further explanation of these codes and the AHRD algorithm, see
 <a href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD Documentation</a>.
 END;
 
