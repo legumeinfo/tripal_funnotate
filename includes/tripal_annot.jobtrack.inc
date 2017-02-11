@@ -8,6 +8,15 @@
 
 function annot_job_page($jobkey)
 {
+	if (isset($_GET["family"] ))
+	{
+		$fID = $_GET["family"];
+		if (!preg_match('/^[0-9]+$/',$fID))
+		{
+			return "<p>Invalid gene family!<p>";
+		}
+		return tripal_annot_family_tree($jobkey,$fID);
+	}
 	$text = "";
 	$refresh_text = <<<END
  
@@ -392,4 +401,82 @@ function build_blast_file_links($jobkey)
 		}
 	}
 	return implode(", ",$links);
+}
+function tripal_annot_family_tree($jobkey,$fID)
+{
+	$fID = trim($fID); # just in case
+	$text = "";
+	$jinfo = tripal_annot_get_job_info(0,$jobkey);
+	if (!$jinfo)
+	{
+		$text = "<p>Job <tt>$jobkey</tt> was not found.<p>";
+		return $text;
+	}
+	$ulpath = tripal_annot_build_file_path($jinfo->ulname); # uploaded sequence file, cleaned
+	if (!file_exists($ulpath))
+	{
+		$text = "<p>Unable to find uploaded sequence file!<p>";
+		tripal_annot_log_error("Can't find upload file $ulpath");
+		return $text;
+	}
+	$sumpath = tripal_annot_build_file_path($jinfo->sumname); # uploaded sequence file, cleaned
+	if (!file_exists($sumpath))
+	{
+		$text = "<p>Unable to find summary table file!<p>";
+		tripal_annot_log_error("Can't find summary file $ulpath");
+		return $text;
+	}
+	#
+	#	First: collect the user sequence names assigned to this gene family
+	#
+	$fh = fopen($sumpath,"r");
+	$line = fgets($fh); # header
+	$user_seqs = array();
+	while ( ($line = fgets($fh)) != FALSE)
+	{
+		$fields = preg_split("/\t/",$line);
+		if (trim($fields[6]) != "") # only one gene family so far but....
+		{
+			$gfs = explode(",",$fields[6]);
+			$match = 0;
+			foreach ($gfs as $i => $gf)
+			{
+				$gf = trim($gf); # it's the end of the line
+				if ($gf == $fID)
+				{
+					$match = 1;
+					break;
+				}
+			}
+			if ($match)
+			{
+				$seqname = trim($fields[0]);
+				$user_seqs[$seqname] = "";
+			}
+		}	
+	}
+	fclose($fh);
+
+	$text .= implode("<p>",array_keys($user_seqs));
+	# 
+	# Now collect the sequences for these names
+	#
+	$fh = fopen($ulpath,"r");
+	$curName = "";
+	while ( ($line = fgets($fh)) != FALSE)
+	{
+		if (preg_match('/^>(\S+)(\s.*)/',$line,$matches))
+		{
+			$curName = $matches[1];
+		}	
+		else
+		{
+			if (isset($user_seqs[$curName]))
+			{
+				$user_seqs[$curName] .= trim($line);
+			}
+		}
+	}
+	$text .= print_r($user_seqs,TRUE);
+	return $text;
 }
