@@ -677,17 +677,39 @@ function tripal_annot_run_escan($jid,$jinfo)
 	}
 	$params = variable_get("annot_escanparam");
 	$upload_fpath = tripal_annot_build_file_path($jinfo->ulname);
+	$outpath1 = "$upload_fpath.trans1";
 	$outpath = "$upload_fpath.trans";
 
 	##$cmd = "$escanpath -M $smatpath -o /tmp/escan.out -t $outpath $upload_fpath";
 	##file_put_contents("/tmp/escan.txt","$cmd\n",FILE_APPEND);
-	$cmd = "$escanpath -M $smatpath -o /dev/null -t $outpath $upload_fpath";
+	$cmd = "$escanpath -M $smatpath -o /dev/null -t $outpath1 $upload_fpath";
 	system($cmd);
 
-	if (!file_exists($outpath) || 0==filesize($outpath))
+	if (!file_exists($outpath1) || 0==filesize($outpath1))
 	{
 		return "ESTScan failed! (no output file, or empty)";
 	}
+	#
+	# ESTscan puts a ; at the ends of names. Why?? Now remove this. 
+	#
+	$fh1 = fopen($outpath1,"r");
+	$fh = fopen($outpath,"w");
+	while ( ($line = fgets($fh1)) != FALSE)
+	{
+		if (preg_match('/^>(\S+)(\s.*)/',$line,$matches))
+		{
+			$curName = $matches[1];
+			$rest = $matches[2];
+			$curName = preg_replace("/;$/","",$curName); 
+			fwrite($fh,">$curName $rest\n");
+		}	
+		else
+		{
+			fwrite($fh,$line);
+		}
+	}
+	fclose($fh); fclose($fh1);
+	unlink($outpath1);
 	return "";
 }
 #

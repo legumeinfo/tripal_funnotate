@@ -252,6 +252,7 @@ while ( ($line = fgets($fh)) != FALSE)
 			foreach ($gfs as $i => $gf)
 			{
 				$linkout = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\">$gf</a>";
+				#$linkout = "<a href=\"/annot/job/$jobkey?family=$gf\">$gf</a>";
 				if ($i % 4 == 3)
 				{
 					$linkout .= "<br>";
@@ -413,6 +414,7 @@ function tripal_annot_family_tree($jobkey,$fID)
 		return $text;
 	}
 	$ulpath = tripal_annot_build_file_path($jinfo->ulname); # uploaded sequence file, cleaned
+	if ($jinfo->ultype == "n") $ulpath .= ".trans";	
 	if (!file_exists($ulpath))
 	{
 		$text = "<p>Unable to find uploaded sequence file!<p>";
@@ -457,7 +459,6 @@ function tripal_annot_family_tree($jobkey,$fID)
 	}
 	fclose($fh);
 
-	$text .= implode("<p>",array_keys($user_seqs));
 	# 
 	# Now collect the sequences for these names
 	#
