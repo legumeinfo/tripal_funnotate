@@ -176,6 +176,11 @@ function annot_config_form($form_state)
 		'#title' => t('HMMER parameters (optional)'),
 		'#default_value' => variable_get('annot_hmmparam', ''),
 	);
+	$form['annot_hmmfamdir']= array(
+		'#type' => 'textfield',
+		'#title' => t('Directory containing fasta files for HMMER target families'),
+		'#default_value' => variable_get('annot_hmmfamdir', ''),
+	);
 	$form['annot_escanpath']= array(
 		'#type' => 'textfield',
 		'#title' => t('Path to ESTScan executable'),
@@ -551,6 +556,16 @@ function annot_config_form_validate($form, &$form_state)
 	{
 		$valid = 0;
 		form_set_error('annot_hmmdb', t('Please enter a valid path to the HMMER database hmm file'));
+	}
+	$path = $form_state['values']['annot_hmmfamdir'];
+	if(!empty($path) && is_dir($path)) 
+	{
+		variable_set('annot_hmmfamdir', $form_state['values']['annot_hmmfamdir']);
+	}
+	else
+	{
+		$valid = 0;
+		form_set_error('annot_hmmfamdir', t('Please enter a valid path to the HMMER fasta directory'));
 	}
 	$path = $form_state['values']['annot_escanpath'];
 	if(!empty($path)) 

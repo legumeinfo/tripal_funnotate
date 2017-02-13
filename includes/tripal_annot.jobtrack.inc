@@ -478,6 +478,9 @@ function tripal_annot_family_tree($jobkey,$fID)
 			}
 		}
 	}
+	#
+	#	Now get the gene family sequences
+	#
 	$text .= print_r($user_seqs,TRUE);
 	return $text;
 }
