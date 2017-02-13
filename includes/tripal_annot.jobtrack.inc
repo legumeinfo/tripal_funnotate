@@ -251,8 +251,8 @@ while ( ($line = fgets($fh)) != FALSE)
 			$linkouts = array();
 			foreach ($gfs as $i => $gf)
 			{
-				$linkout = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\">$gf</a>";
-				#$linkout = "<a href=\"/annot/job/$jobkey?family=$gf\">$gf</a>";
+				#$linkout = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\">$gf</a>";
+				$linkout = "<a href=\"/annot/job/$jobkey?family=$gf\">$gf</a>";
 				if ($i % 4 == 3)
 				{
 					$linkout .= "<br>";
@@ -481,6 +481,42 @@ function tripal_annot_family_tree($jobkey,$fID)
 	#
 	#	Now get the gene family sequences
 	#
-	$text .= print_r($user_seqs,TRUE);
+	$gfdir = variable_get("annot_hmmfamdir","");
+	if (!is_dir($gfdir))
+	{
+		log_error("Gene family directory $gfdir not found");
+		$text .= "<p>Configuration error: unable to find the gene family fasta sequences<p>";
+		return $text;
+	}
+	$gffile = "$gfdir/$fID";
+	if (!file_exists($gffile))
+	{
+		log_error("Gene family file $gffile not found");
+		$text .= "<p>Configuration error: unable to find the gene family fasta sequences for $fID<p>";
+		return $text;
+	}
+	$seqs = file_get_contents($gffile);
+	if (!$seqs)
+	{
+		log_error("Gene family file $gffile unreadable or empty");
+		$text .= "<p>Error: gene family sequences for $fID could not be loaded<p>";
+		return $text;
+	}
+	#
+	# Write all the seqs to a temp file for upload to Lorax
+	#
+	$tmpdir = file_directory_temp();	
+	$gf_attach = "$tmpdir/gf_$jobkey.fa";
+	file_put_contents($gf_attach,$seqs);
+	foreach ($user_seqs as $name => $seq)
+	{
+		$entry = ">$name\n";
+		for ($i = 0; $i < strlen($seq); $i += 50)
+		{
+			$entry .= substr($seq,$i,50);
+			$entry .= "\n";
+		}
+		file_put_contents($gf_attach,$entry,FILE_APPEND);
+	}
 	return $text;
 }
