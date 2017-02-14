@@ -1,5 +1,5 @@
 <?php
-
+error_reporting(E_STRICT);
 
 #################################################################################
 #
@@ -180,6 +180,11 @@ function annot_config_form($form_state)
 		'#type' => 'textfield',
 		'#title' => t('Directory containing fasta files for HMMER target families'),
 		'#default_value' => variable_get('annot_hmmfamdir', ''),
+	);
+	$form['annot_loraxurl']= array(
+		'#type' => 'textfield',
+		'#title' => t('Url of the lorax service, http://host:port'),
+		'#default_value' => variable_get('annot_loraxurl', ''),
 	);
 	$form['annot_escanpath']= array(
 		'#type' => 'textfield',
@@ -566,6 +571,32 @@ function annot_config_form_validate($form, &$form_state)
 	{
 		$valid = 0;
 		form_set_error('annot_hmmfamdir', t('Please enter a valid path to the HMMER fasta directory'));
+	}
+	$url = trim($form_state['values']['annot_loraxurl']);
+	if ($url != "")
+	{
+		if (!function_exists("curl_init"))
+		{
+			$valid = 0;
+			form_set_error('annot_loraxurl', t('Unable to use lorax since PHP cURL is not enabled'));
+		}
+		else
+		{
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, "http://www.google.com");
+			curl_setopt($ch, CURLOPT_HEADER, 0);
+			$ret = curl_exec($ch);
+			if (FALSE != $ret)
+			{
+				variable_set('annot_loraxurl', $url);
+			}
+			else
+			{
+				$valid = 0;
+				form_set_error('annot_loraxurl', "Unable to contact lorax host using $url/config");
+			}
+			curl_close($ch);
+		}
 	}
 	$path = $form_state['values']['annot_escanpath'];
 	if(!empty($path)) 

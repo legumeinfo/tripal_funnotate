@@ -215,6 +215,9 @@ function tripal_annot_mail($key, &$message, $params)
 function annot_update_schema()
 {
 }
+#
+#TODO: these checks are correct however have not kept up with new functionality
+#
 function validate_config()
 {
 	$path = variable_get("annot_blast_path","");
@@ -283,7 +286,22 @@ function validate_config()
 	{
 		return t("Unable to find /bin/bash");
 	}
-	return "";
+	$url = trim($form_state['values']['annot_loraxurl']);
+	if ($url != "")
+	{
+		if (!function_exists("curl_init"))
+		{
+			return "Unable to use lorax since PHP cURL is not enabled";
+		}
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, "http://www.google.com");
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+		$ret = curl_exec($ch);
+		if (FALSE == $ret)
+		{
+			return "Unable to contact lorax server; check configuration";
+		}
+	}
 }
 # Add a file to the managed_file system. 
 # File must be in the public files area (function tripal_annot_get_file_dir)

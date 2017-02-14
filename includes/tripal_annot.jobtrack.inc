@@ -10,6 +10,11 @@ function annot_job_page($jobkey)
 {
 	if (isset($_GET["family"] ))
 	{
+		$url = variable_get('annot_loraxurl','');
+		if ($url == "")
+		{
+			return "<p>Unable to create gene family tree since no lorax server was configured<p>";
+		}
 		$fID = $_GET["family"];
 		if (!preg_match('/^[0-9]+$/',$fID))
 		{
@@ -413,6 +418,14 @@ function tripal_annot_family_tree($jobkey,$fID)
 		$text = "<p>Job <tt>$jobkey</tt> was not found.<p>";
 		return $text;
 	}
+	#
+	# See if job is in progress
+	#
+	$lorax_url = variable_get('annot_loraxurl');
+	$ch = curl_init();
+#	curl_setopt($ch, CURLOPT_URL, "$url/trees/$jobkey/sequences/status");
+#	$ret = curl_exec($ch);
+
 	$ulpath = tripal_annot_build_file_path($jinfo->ulname); # uploaded sequence file, cleaned
 	if ($jinfo->ultype == "n") $ulpath .= ".trans";	
 	if (!file_exists($ulpath))
@@ -518,5 +531,104 @@ function tripal_annot_family_tree($jobkey,$fID)
 		}
 		file_put_contents($gf_attach,$entry,FILE_APPEND);
 	}
+	#
+	#	Get the HMM for this family
+	#
+	$hmmdbfile = variable_get("annot_hmmdb","");
+	if (!is_file($hmmdbfile))
+	{
+		log_error("Gene family HMM database $hmmdbfile not found");
+		$text .= "<p>Configuration error: unable to find the gene family definition file<p>";
+		return $text;
+	}
+	$fh = fopen($hmmdbfile,"r");
+	if (!$fh)
+	{
+		log_error("Gene family HMM database $hmmdbfile not readable");
+		$text .= "<p>Configuration error: unable to read the gene family definition file<p>";
+		return $text;
+	}
+	$curName = "";
+	$hmmline = ""; 
+	$hmmdata = "";
+	while ( ($line = fgets($fh)) != FALSE)
+	{
+		if (preg_match('/^\s*HMMER.*/',$line,$matches))
+		{
+			if ($curName == $fID) break; # already found it
+			$hmmline = $line;  # save it off because it comes before the name line
+			$curName = "";
+		}	
+		else if (preg_match('/^\s*NAME\s+(\S+).*/',$line,$matches))
+		{
+			$curName = $matches[1];
+			if ($curName == $fID)
+			{
+				$hmmdata = $hmmline;
+			}
+		}	
+		if ($curName == $fID)
+		{
+			$hmmdata .= $line;
+		}
+	}
+	fclose($fh);
+	if ($hmmdata == "")
+	{
+		log_error("Unable to find HMM for $fID in database $hmmdbfile");
+		$text .= "<p>Configuration error: unable to locate gene family definition<p>";
+		return $text;
+	}
+	$gf_hmm = "$tmpdir/hmm_$jobkey.hmm";
+	file_put_contents($gf_hmm,$hmmdata);
+	#
+	#	Finally make the lorax requests
+	#
+	#curl_setopt($ch, CURLOPT_URL, "$lorax_url/config");
+	curl_setopt($ch, CURLOPT_POST,1);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
+	$text .= "<p>$ret<p>";
+
+	$url = "$lorax_url/trees/$jobkey/HMM";
+	$text .= "<p>Try: $url<p>";
+	curl_setopt($ch, CURLOPT_URL, $url);
+	$cfile = new CURLFile($gf_hmm);
+	$post = array("HMM" => $cfile);
+	curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+	$ret = curl_exec($ch);
+	if ($ret == FALSE)
+	{
+		$text .= "HMM upload to lorax was not successful<p>";
+		log_error("Failed to upload HMM $gf_hmm to lorax server $url");
+		return $text;
+	}
+	$text .= "<p>$ret<p>";
+
+	$url = "$lorax_url/trees/$jobkey/sequences";
+	$text .= "<p>Try: $url<p>";
+	curl_setopt($ch, CURLOPT_URL, $url);
+	$cfile = new CURLFile($gf_attach);
+	$post = array("peptide" => $cfile);
+	curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+	$ret = curl_exec($ch);
+	if ($ret == FALSE)
+	{
+		$text .= "Sequence upload to lorax was not successful<p>";
+		log_error("Failed to upload sequences $gf_attach to lorax server $url");
+		return $text;
+	}
+	$text .= "<p>$ret<p>";
+
+	$url = "$lorax_url/trees/$jobkey/FastTree";
+	$text .= "<p>Try: $url<p>";
+	curl_setopt($ch, CURLOPT_URL, $url);
+	$ret = curl_exec($ch);
+	if ($ret == FALSE)
+	{
+		$text .= "lorax FastTree was not successful<p>";
+		log_error("FastTree failed");
+		return $text;
+	}
+	$text .= "<p>$ret<p>";
 	return $text;
 }
