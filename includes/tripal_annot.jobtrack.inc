@@ -423,8 +423,9 @@ function tripal_annot_family_tree($jobkey,$fID)
 	#
 	$lorax_url = variable_get('annot_loraxurl');
 	$ch = curl_init();
-#	curl_setopt($ch, CURLOPT_URL, "$url/trees/$jobkey/sequences/status");
-#	$ret = curl_exec($ch);
+	curl_setopt($ch, CURLOPT_URL, "$url/trees/$jobkey/FastTree/status");
+	$ret = curl_exec($ch);
+	
 
 	$ulpath = tripal_annot_build_file_path($jinfo->ulname); # uploaded sequence file, cleaned
 	if ($jinfo->ultype == "n") $ulpath .= ".trans";	
@@ -619,9 +620,26 @@ function tripal_annot_family_tree($jobkey,$fID)
 	}
 	$text .= "<p>$ret<p>";
 
+	$ch = curl_init();
+
+	$url = "$lorax_url/trees/$jobkey/hmmalign";
+	$text .= "<p>Try: $url<p>";
+	curl_setopt($ch, CURLOPT_URL, $url);
+#$ret = file_get_contents($url);
+	$ret = curl_exec($ch);
+	if ($ret == FALSE)
+	{
+		$text .= "lorax hmmalign was not successful<p>";
+		log_error("hmmalign failed");
+		return $text;
+	}
+	$text .= "<p>$ret<p>";
+return $text;
+
 	$url = "$lorax_url/trees/$jobkey/FastTree";
 	$text .= "<p>Try: $url<p>";
 	curl_setopt($ch, CURLOPT_URL, $url);
+#$ret = file_get_contents($url);
 	$ret = curl_exec($ch);
 	if ($ret == FALSE)
 	{
