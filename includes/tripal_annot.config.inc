@@ -686,6 +686,18 @@ function annot_config_form_validate($form, &$form_state)
 		form_set_error('annot_elog',t("Please specify a valid error log file"));
 		$valid = 0;
 	}
+	if ($valid)
+	{
+		# If all else looks good, make the ipr properties file
+		# Note this is only meaningful if threads > 1
+		$propsdir = variable_get("annot_iprcfgdir");
+		$threads = variable_get("annot_nthread",1);
+		if (FALSE == setup_ipr_properties($propsdir,$threads))
+		{
+			form_set_error('annot_iprcfgdir', t('Could not create ipr properties file in directory '.$path));
+			$valid = 0;	
+		}
+	}
 	if ($valid == 0)
 	{
 		drupal_set_message("The configuration failed!","error");
@@ -694,4 +706,37 @@ function annot_config_form_validate($form, &$form_state)
 function config_form_submit($form, &$form_state)
 {
 	drupal_set_message('The form has been submitted.');
+}
+#TODO: not entirely thread safe however likelihood of conflict extremely low
+function setup_ipr_properties($dir,$threads)
+{
+	$propstext = <<<END
+#Number of embedded workers at start time
+number.of.embedded.workers=1
+#Maximum number of embedded workers
+maxnumber.of.embedded.workers=$threads
+
+#hmmer cpu options for the different jobs
+hmmer3.hmmsearch.cpu.switch.pfama=--cpu 1
+hmmer3.hmmsearch.cpu.switch.tigrfam=--cpu 1
+hmmer3.hmmsearch.cpu.switch.gene3d=--cpu 1
+hmmer3.hmmsearch.cpu.switch.superfamily=--cpu 1
+
+hmmer2.hmmpfam.cpu.switch.smart=--cpu 1
+hmmer2.hmmpfam.cpu.switch.pirsf=--cpu 1
+
+#blastall cpu options
+blastall.cpu.switch.pirsf=-a 1
+
+#panther binary cpu options (for blastall and hmmsearch)
+panther.binary.cpu.switch=-c 1
+END;
+	
+	$iprdir = "$dir/.interproscan-5";
+	if (!is_dir($dir))
+	{
+		mkdir($dir);
+	}
+	$propfile = "$iprdir/interproscan.properties";
+	return file_put_contents($propfile,$propstext);
 }

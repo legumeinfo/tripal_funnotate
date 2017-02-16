@@ -65,14 +65,14 @@ function tripal_annot_run_ahrd($jid,$jinfo)
 
 	$yamstr = Spyc::YAMLDump($yaml_obj,2,0);
 
-	$yamtmp = file_directory_temp()."/yamldump.txt"; # TODO: not thread safe
+	$yamtmp = file_directory_temp()."/yaml_$jobkey.txt"; 
 	file_put_contents($yamtmp,$yamstr);
 	system("chmod 755 $yamtmp");
 
 	$java_path = variable_get("annot_java_path");
 	$ahrd_path = variable_get("annot_ahrd_path");
 	$ahrd_cmd = "$java_path -Xmx2g -jar $ahrd_path $yamtmp";
-	file_put_contents("/tmp/ahrd.txt",$ahrd_cmd); # TODO
+	file_put_contents("/tmp/ahrd.txt",$ahrd_cmd); 
 	system($ahrd_cmd);	
 
 	if (!file_exists($outpath))
@@ -106,7 +106,7 @@ function annot_gzip_blasts(&$blasts, $jid, $jobkey)
 #
 #	Callback function for running InterPro
 #
-# TODO: threads
+# TODO: writing props file is not entirely thread safe
 function tripal_annot_run_ipr($jid,$jinfo)
 {
 	$iprdir = variable_get("annot_iprdir","");
@@ -126,12 +126,17 @@ function tripal_annot_run_ipr($jid,$jinfo)
 	$cmd = "$iprpath $params";
 	file_put_contents("/tmp/iprcmd.txt",$cmd); # TODO
 
-
+	#
+	# IPR demands a properties directory
+	# IF user desires multiple threads, then a props file must be configured
+	# in that directory.
+	# This is done on the annot config page.
+	#
 	$propsdir = variable_get("annot_iprcfgdir");
-	$threads = variable_get("annot_nthread",1);
-	setup_ipr_properties($propsdir,$threads);
-	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" ); # TODO
-	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
+	#$threads = variable_get("annot_nthread",1);
+	#setup_ipr_properties($propsdir,$threads);
+	#system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr.txt 2>& 1" ); 
+	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
 	if (!file_exists($outpath))
 	{
 		return "InterPro failed - no xml output";
@@ -143,10 +148,10 @@ function tripal_annot_run_ipr($jid,$jinfo)
 	$rawname = "ipr_$jobkey.txt";
 	$rawpath = tripal_annot_build_file_path($rawname);
 	$cmd = "$iprpath -i $outpath -mode convert -f RAW -o $rawpath";
-	file_put_contents("/tmp/iprcmd.txt",$cmd,FILE_APPEND); # TODO
+	#file_put_contents("/tmp/iprcmd.txt",$cmd,FILE_APPEND); 
 
-	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr2.txt 2>& 1" ); # TODO
-	##system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
+	#system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /tmp/annotipr2.txt 2>& 1" ); 
+	system("export _JAVA_OPTIONS=-Duser.home=$propsdir; $cmd > /dev/null 2>& 1" );
 	if (!file_exists($rawpath))
 	{
 		return "Failed to convert InterPro xml to raw";
@@ -176,9 +181,9 @@ function tripal_annot_run_hmm($jid,$jinfo)
 	$params = " --cpu $threads --tblout $outpath $hmmdb $query_path "; # TODO: cpu not working?
 	$cmd = "$hmmsearchpath $params";
 
-	file_put_contents("/tmp/hmmcmd.txt",$cmd); # TODO
-	system("$cmd > /tmp/annothmm.txt 2>& 1" );
-	##system("$cmd > /dev/null 2>& 1" );
+	#file_put_contents("/tmp/hmmcmd.txt",$cmd); 
+	#system("$cmd > /tmp/annothmm.txt 2>& 1" );
+	system("$cmd > /dev/null 2>& 1" );
 	if (!file_exists($outpath))
 	{
 		#file_put_contents($outpath,""); # TODO: does HMMer generate a file if no results?
@@ -190,37 +195,4 @@ function tripal_annot_run_hmm($jid,$jinfo)
 	}
 	return "";
 
-}
-#TODO: not entirely thread safe however likelihood of conflict extremely low
-function setup_ipr_properties($dir,$threads)
-{
-	$propstext = <<<END
-#Number of embedded workers at start time
-number.of.embedded.workers=1
-#Maximum number of embedded workers
-maxnumber.of.embedded.workers=$threads
-
-#hmmer cpu options for the different jobs
-hmmer3.hmmsearch.cpu.switch.pfama=--cpu 1
-hmmer3.hmmsearch.cpu.switch.tigrfam=--cpu 1
-hmmer3.hmmsearch.cpu.switch.gene3d=--cpu 1
-hmmer3.hmmsearch.cpu.switch.superfamily=--cpu 1
-
-hmmer2.hmmpfam.cpu.switch.smart=--cpu 1
-hmmer2.hmmpfam.cpu.switch.pirsf=--cpu 1
-
-#blastall cpu options
-blastall.cpu.switch.pirsf=-a 1
-
-#panther binary cpu options (for blastall and hmmsearch)
-panther.binary.cpu.switch=-c 1
-END;
-	
-	$iprdir = "$dir/.interproscan-5";
-	if (!is_dir($dir))
-	{
-		mkdir($dir);
-	}
-	$propfile = "$iprdir/interproscan.properties";
-	file_put_contents($propfile,$propstext);
 }

@@ -338,6 +338,15 @@ function tripal_annot_test_errlog()
 			system("chmod 755 $path");
 			return 1;
 		}
+		else
+		{
+			file_put_contents($path,"Annot error log");
+			if(file_exists($path) ) 
+			{
+				system("chmod 755 $path");
+				return 1;
+			}
+		}
 	}
 	return 0;
 }
