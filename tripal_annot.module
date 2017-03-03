@@ -4,6 +4,8 @@ require_once("includes/tripal_annot.ahrd.inc");
 require_once("includes/tripal_annot.upload.inc");
 require_once("includes/tripal_annot.jobtrack.inc");
 require_once("includes/tripal_annot.post.inc");
+require_once("includes/tripal_annot.testpage.inc");
+require_once("theme/tripal_annot.theme.inc");
 require_once("includes/Spyc.php");
 
 #####################################################################################
@@ -48,6 +50,13 @@ function tripal_annot_menu()
 		'type' => MENU_CALLBACK,
   	);
 
+  	$items['annot/test/%'] = array(
+		'title' => 'Annotation Test',
+		'page callback' => 'annot_test_page',
+		'page arguments' => array(2), // The matched wildcard.
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK,
+  	);
 
 	$items['admin/tripal/extension/tripal_annot'] = array(
 		'title' => 'Annotation Module Configuration',
@@ -59,6 +68,22 @@ function tripal_annot_menu()
 
 	return $items;
 }
+
+#
+# hook_theme to tell drupal about our template
+#
+function tripal_annot_theme($existing, $type, $theme, $path) 
+{
+	$items = array(
+ 		// base template , mainly script and style includes 
+ 		'tripal_annot_base' => array(
+   			'variables' => array('node' => NULL),
+   			'template' => 'tripal_annot_base',
+   			'path' => "$path/theme/templates",
+ 			),
+   );
+   return $items;
+ }
 
 
 #################################################################################

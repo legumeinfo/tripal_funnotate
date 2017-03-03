@@ -408,7 +408,7 @@ function build_blast_file_links($jobkey)
 	}
 	return implode(", ",$links);
 }
-function tripal_annot_family_tree($jobkey,$fID)
+function tripal_annot_family_tree_old($jobkey,$fID)
 {
 	$fID = trim($fID); # just in case
 	$text = "";
@@ -650,3 +650,140 @@ return $text;
 	$text .= "<p>$ret<p>";
 	return $text;
 }
+function tripal_annot_family_tree($jobkey,$fID)
+{
+	$refresh_text = <<<END
+ 
+<script>
+var time = new Date().getTime();
+function refresh() 
+{
+	 if(new Date().getTime() - time >= 20000) 
+		 window.location.reload(true);
+	 else 
+		 setTimeout(refresh, 20000);
+}
+
+setTimeout(refresh, 20000);
+</script>
+END;
+
+	$text = "";
+	$lorax_url = variable_get('annot_loraxurl');
+	$ch = curl_init();
+
+	$sftag = "$fID.$jobkey";
+	#
+	# See if job is in progress
+	#
+	$status_url = "$lorax_url/trees/$sftag/FastTree/status";
+	curl_setopt($ch, CURLOPT_URL, $status_url);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+	$ret = trim(curl_exec($ch));
+	if ($ret == "-1")
+	{
+		$text .= "$refresh_text In Progress....";
+		return $text;
+	}
+	else if ($ret == "0")
+	{
+		$tree_url = "$lorax_url/trees/$sftag/FastTree/tree.nwk";
+		curl_setopt($ch, CURLOPT_URL, $tree_url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+		$ret = trim(curl_exec($ch));
+		$text .= "<p>$tree_url<p>$ret<p>";
+		return $text;
+	}
+	else
+	{
+		$text .= "Error!";
+		return $text;
+
+	}
+	return $text;
+}
+function phylotree_by_id($phylotree_id) {
+  
+  //getting the name of the tree will allow construction of links to MSAs
+  //TODO: might be better to have this function accept the name as its param
+  $sql = <<<SQL
+  SELECT name from chado.phylotree where phylotree_id = :phylotree_id
+SQL;
+
+  $args = array(':phylotree_id' => $phylotree_id);
+  $result = chado_query( $sql, $args );
+  $phylotree_name = '';
+  foreach ($result as $r) {
+    $phylotree_name = $r->name;
+  }
+
+  // reminder: the chado_xxxx tables are tripal/drupal's linking tables
+  $sql = <<<SQL
+  SELECT n.phylonode_id, n.parent_phylonode_id, n.label AS name,
+  distance AS length, f.feature_id, f.name AS feature_name,
+  cvt.name AS cvterm_name, o.organism_id, o.common_name, o.abbreviation,
+  o.genus, o.species, cf.nid AS feature_node_id, co.nid AS organism_node_id
+  FROM chado.phylonode n
+  LEFT OUTER JOIN chado.cvterm cvt ON n.type_id = cvt.cvterm_id
+  LEFT OUTER JOIN chado.feature f ON n.feature_id = f.feature_id
+  LEFT OUTER JOIN chado_feature cf ON cf.feature_id = f.feature_id
+  LEFT OUTER JOIN chado.organism o ON f.organism_id = o.organism_id
+  LEFT OUTER JOIN chado_organism co ON co.organism_id = o.organism_id
+  WHERE n.phylotree_id = :phylotree_id
+SQL;
+
+  $args = array(':phylotree_id' => $phylotree_id);
+  $result = chado_query( $sql, $args );
+
+  // fetch all the phylonodes into an assoc array indexed by
+  // phylonode_id.  convert into from resultset record to array,
+  // fixing datatypes. chado_query returns numeric as string and fun
+  // stuff like that.
+  $phylonodes = array();
+  $root_phylonode_ref = null;
+  
+  foreach ($result as $r) {
+    $phylonode_id = (int) $r->phylonode_id;
+
+    // expect all nodes to have these properties
+    $node = array(
+      'phylonode_id' => $phylonode_id,
+      'parent_phylonode_id' => (int) $r->parent_phylonode_id,
+      'length' => (double) $r->length,
+      'cvterm_name' => $r->cvterm_name
+    );
+    
+    // other props may exist only for leaf nodes
+    if($r->name) {
+      $node['name'] = $r->name;
+    }
+    if($r->feature_id) {
+      $node['feature_id'] = (int) $r->feature_id;
+      $node['feature_name'] = $r->feature_name;
+      $node['feature_node_id'] = (int) $r->feature_node_id;
+    }
+    if($r->organism_id) {
+      $node['organism_id'] = (int) $r->organism_id;
+      $node['common_name'] = $r->common_name;
+      $node['abbreviation'] = $r->abbreviation;
+      $node['genus'] = $r->genus;
+      $node['species'] = $r->species;
+      $node['organism_node_id'] = (int) $r->organism_node_id;
+    }
+    $phylonodes[$phylonode_id] = $node;
+  }
+  
+  //populate the children[] arrays for each node
+  foreach( $phylonodes as $key => &$node ) {
+    if($node['parent_phylonode_id'] !== 0) {
+      $parent_ref = &$phylonodes[ $node['parent_phylonode_id'] ]; // get
+      $parent_ref['children'][] = &$node; // append node refernce to children
+    }
+    else {
+      $root_phylonode_ref = &$node;
+      $root_phylonode_ref['phylotree_name'] = $phylotree_name;
+    }
+  }
+  return $root_phylonode_ref;
+}
+
