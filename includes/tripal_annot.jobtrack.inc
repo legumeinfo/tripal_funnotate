@@ -8,6 +8,11 @@
 
 function annot_job_page($jobkey)
 {
+	if (isset($_POST["json"]))
+	{
+		$text = "<pre>".$_POST["json"]."</pre>";
+		return $text;
+	}
 	if (isset($_GET["family"] ))
 	{
 		$url = variable_get('annot_loraxurl','');
@@ -701,20 +706,45 @@ END;
 
 	}
 	return $text;
+
+		$fname = "phytozome_10_2.$fID";
+		$json = json_encode(tripal_annot_phylotree_by_name($fname));
+		$endpoint = "https://localhost:8081/chado_phylotree/$fname";
+
+		$text .= "$fname<p>";
+		$text .= <<<END
+<script>
+var treeData = 
+$json;
+
+function add_treedata()
+{
+	var jobj = document.getElementById("json");	
+	var treestr = JSON.stringify(treeData);
+	jobj.value = treestr;
 }
-function phylotree_by_id($phylotree_id) {
+
+</script>
+
+<form  method="post" action="$endpoint" onsubmit="add_treedata()">
+<input type="submit" name="submit">
+<input type="hidden" id="json" name="json" value="">
+</form>
+END;
+}
+function tripal_annot_phylotree_by_name($phylotree_name) {
   
   //getting the name of the tree will allow construction of links to MSAs
   //TODO: might be better to have this function accept the name as its param
   $sql = <<<SQL
-  SELECT name from chado.phylotree where phylotree_id = :phylotree_id
+  SELECT phylotree_id  from chado.phylotree where name = :phylotree_name
 SQL;
 
-  $args = array(':phylotree_id' => $phylotree_id);
+  $args = array(':phylotree_name' => $phylotree_name);
   $result = chado_query( $sql, $args );
-  $phylotree_name = '';
+  $phylotree_id = 0;
   foreach ($result as $r) {
-    $phylotree_name = $r->name;
+    $phylotree_id = $r->phylotree_id;
   }
 
   // reminder: the chado_xxxx tables are tripal/drupal's linking tables
