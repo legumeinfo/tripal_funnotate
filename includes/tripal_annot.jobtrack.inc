@@ -693,10 +693,36 @@ END;
 	else if ($ret == "0")
 	{
 		$tree_url = "$lorax_url/trees/$sftag/FastTree/tree.nwk";
+		$fname = "phytozome_10_2.$fID";
+
 		curl_setopt($ch, CURLOPT_URL, $tree_url);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
-		$ret = trim(curl_exec($ch));
-		$text .= "<p>$tree_url<p>$ret<p>";
+		$newick_tree = trim(curl_exec($ch));
+		$text .= "<p>$tree_url<p>$newick_tree<p>";
+
+		$phylonodes = array();
+		$phylonames = array();
+		$phylotree_root = tripal_annot_phylotree_by_name($fname, $phylonodes, $phylonames);
+		#$text .= "<pre>".print_r($phylonodes,TRUE)."</pre>";
+		$t = new Tree();
+		$t->Parse($newick_tree);
+		#$text .= "<pre>".$t->WriteNewick()."</pre>";
+
+		$final = array();
+		fill_out_tree_structure($phylonodes,$phylonames,$t, $final);
+		//populate the children[] arrays for each node
+		foreach( $final as $key => &$node ) 
+		{
+			if($node['parent_phylonode_id'] !== 0) 
+			{
+				$parent_ref = &$final[ $node['parent_phylonode_id'] ]; 
+				$parent_ref['children'][] = &$node; 
+			}
+		}
+		$phylotree_root = &$final[1];
+		$phylotree_root['phylotree_name'] = $fname;
+		
+
 		return $text;
 	}
 	else
@@ -707,8 +733,7 @@ END;
 	}
 	return $text;
 
-		$fname = "phytozome_10_2.$fID";
-		$json = json_encode(tripal_annot_phylotree_by_name($fname));
+		$json = json_encode($phylotree_root);
 		$endpoint = "https://localhost:8081/chado_phylotree/$fname";
 
 		$text .= "$fname<p>";
@@ -732,7 +757,7 @@ function add_treedata()
 </form>
 END;
 }
-function tripal_annot_phylotree_by_name($phylotree_name) {
+function tripal_annot_phylotree_by_name($phylotree_name, &$phylonodes, &$phylonames) {
   
   //getting the name of the tree will allow construction of links to MSAs
   //TODO: might be better to have this function accept the name as its param
@@ -769,7 +794,6 @@ SQL;
   // phylonode_id.  convert into from resultset record to array,
   // fixing datatypes. chado_query returns numeric as string and fun
   // stuff like that.
-  $phylonodes = array();
   $root_phylonode_ref = null;
   
   foreach ($result as $r) {
@@ -801,8 +825,11 @@ SQL;
       $node['organism_node_id'] = (int) $r->organism_node_id;
     }
     $phylonodes[$phylonode_id] = $node;
+    $phylonames[$r->name] = $phylonode_id;
   }
   
+  return $root_phylonode_ref;
+
   //populate the children[] arrays for each node
   foreach( $phylonodes as $key => &$node ) {
     if($node['parent_phylonode_id'] !== 0) {
@@ -816,4 +843,110 @@ SQL;
   }
   return $root_phylonode_ref;
 }
+function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final) 
+{
+	# Traverse the tree structure and add data from the DB for 
+	# the gene family nodes. 
+	# linear array for the gene family, downloaded from the DB.
+	# This means adding parent/child links for existing nodes,
+	# and also adding in new nodes for the user sequences. 
+
+	$stack = array();
+	$curnode = $t->root;
+
+	# Note $final has to be set up as an associative array keyed on "phylonode_id"
+	# to work with the display code
+	# TODO: need to make sure the fake phylonode_id's don't step on the real ones
+	$final[1] = array(
+		"cvterm_name" => "phylo_root", 
+		"length" => 0, 
+		"parent_phylonode_id" => 0, 
+		"phylonode_id" => 1
+	);
+	
+	# depth-first traversal
+	# note top of stack is always the parent of the current node
+	while ($curnode != NULL)
+	{	
+		if ($curnode->GetChild())
+		{
+			# interior node
+			$length = $curnode->GetAttribute('edge_length');
+			$new_phylonode_id = 1 + count($final);
+
+			$cur_parent_id = 0; # only for root
+			if (count($stack) > 0)
+			{
+				$stack_top = array_slice($stack, -1)[0];
+				$cur_parent_id = $stack_top["phylonode_id"];
+			}
+
+			$newnode = array(
+				[phylonode_id] => $new_phylonode_id,
+				[parent_phylonode_id] => $cur_parent_id, 
+				[length] => $length,
+				[cvterm_name] => "phylo_interior"
+			);
+			$final[$new_phylonode_id] = $newnode;
+			$cur_parent_id = $new_phylonode_id;
+			
+			$stack[] = $curnode;
+			$curnode = $curnode->GetChild();
+		}
+		else
+		{
+			# leaf node
+			$name = $curnode->GetLabel();
+			$length = $curnode->GetAttribute('edge_length');
+			if ($length == '')
+			{
+				$length = 0; # can this happen?
+			}
+			$oldnode = array();
+			$phylonode_id = 1 + count[$final];
+			$existing = 0;
+			if (isset($phylonames[$name]))
+			{
+				$phylonode_id = $phylonames[$name];
+				$oldnode = $phylonodes[$phylonode_id];
+				$existing = 1;
+			}
+
+			# find parent from top of stack - note stack should not be empty for leaf
+			$stack_top = array_slice($stack, -1)[0];
+			$cur_parent_id = $stack_top["phylonode_id"];
+
+			$newnode = array(
+ 				"phylonode_id" => $phylonode_id,
+				"parent_phylonode_id" => $cur_parent_id, 
+				"length" => $length,
+				"cvterm_name" => "phylo_leaf",
+				"name" => $name,
+				"feature_id" => ($existing ? $oldnode["feature_id"] : 0),
+				"feature_name" => $name,
+				"feature_node_id" => ($existing? $oldnode["feature_node_id"] : 0),
+				"organism_id" =>  ($existing? $oldnode["organism_id"] : 0),
+				"common_name" =>  ($existing? $oldnode["common_name"] : ""),
+				"abbreviation" =>  ($existing? $oldnode["abbreviation"] : ""),
+				"genus" =>  ($existing? $oldnode["genus"] : ""),
+				"species" =>  ($existing? $oldnode["species"] : ""),
+				"organism_node_id" =>  ($existing? $oldnode["organism_node_id"] : 0)
+			);
+			$final[$phylonode_id] = $newnode;
+										
+			while (!empty($stack) && ($curnode->GetSibling() == NULL))
+			{
+				array_pop($stack);
+			}
+			if (empty($stack))
+			{
+				$curnode = NULL;
+			}
+			else
+			{
+				$curnode = $curnode->GetSibling();
+			}
+		}		
+	}
+}	
 
