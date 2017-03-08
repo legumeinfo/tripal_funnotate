@@ -1,5 +1,6 @@
 <?php
 
+error_reporting(E_ALL);
 #####################################################################################
 #
 # Job tracking page: Track job status and provide results for download
@@ -707,9 +708,9 @@ END;
 		$t = new Tree();
 		$t->Parse($newick_tree);
 		#$text .= "<pre>".$t->WriteNewick()."</pre>";
-
 		$final = array();
-		fill_out_tree_structure($phylonodes,$phylonames,$t, $final);
+		fill_out_tree_structure($phylonodes,$phylonames,$t, $final, $text);
+		#$text .= "<pre>".print_r($final,TRUE)."</pre>";
 		//populate the children[] arrays for each node
 		foreach( $final as $key => &$node ) 
 		{
@@ -719,21 +720,14 @@ END;
 				$parent_ref['children'][] = &$node; 
 			}
 		}
+		#$text .= "<pre>".print_r($final,TRUE)."</pre>";
 		$phylotree_root = &$final[1];
 		$phylotree_root['phylotree_name'] = $fname;
-		
-
-		return $text;
-	}
-	else
-	{
-		$text .= "Error!";
-		return $text;
-
-	}
-	return $text;
+		#$text .= "<pre>".print_r($phylotree_root,TRUE)."</pre>";
 
 		$json = json_encode($phylotree_root);
+		$text .= "<pre>$json</pre>";
+		
 		$endpoint = "https://localhost:8081/chado_phylotree/$fname";
 
 		$text .= "$fname<p>";
@@ -756,6 +750,17 @@ function add_treedata()
 <input type="hidden" id="json" name="json" value="">
 </form>
 END;
+
+		return $text;
+	}
+	else
+	{
+		$text .= "Error!";
+		return $text;
+
+	}
+	return $text;
+
 }
 function tripal_annot_phylotree_by_name($phylotree_name, &$phylonodes, &$phylonames) {
   
@@ -843,7 +848,7 @@ SQL;
   }
   return $root_phylonode_ref;
 }
-function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final) 
+function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final, &$text) 
 {
 	# Traverse the tree structure and add data from the DB for 
 	# the gene family nodes. 
@@ -852,46 +857,63 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final)
 	# and also adding in new nodes for the user sequences. 
 
 	$stack = array();
-	$curnode = $t->root;
+	$id_stack = array(); # parallel stack, to track the newly-generated ID's
+	$used_ids = array(); #TODO fill with existing ids
+	$new_phylonode_id = 0;
 
 	# Note $final has to be set up as an associative array keyed on "phylonode_id"
 	# to work with the display code
-	# TODO: need to make sure the fake phylonode_id's don't step on the real ones
-	$final[1] = array(
-		"cvterm_name" => "phylo_root", 
-		"length" => 0, 
-		"parent_phylonode_id" => 0, 
-		"phylonode_id" => 1
-	);
 	
 	# depth-first traversal
 	# note top of stack is always the parent of the current node
+	# 
+	$curnode = $t->root;
 	while ($curnode != NULL)
 	{	
+		#$text .= implode(",",$id_stack)."<p>\n";
+		if (count($stack) != count($id_stack))
+		{
+			die("Stack error!");
+		}
 		if ($curnode->GetChild())
 		{
-			# interior node
-			$length = $curnode->GetAttribute('edge_length');
-			$new_phylonode_id = 1 + count($final);
-
-			$cur_parent_id = 0; # only for root
-			if (count($stack) > 0)
-			{
-				$stack_top = array_slice($stack, -1)[0];
-				$cur_parent_id = $stack_top["phylonode_id"];
-			}
-
-			$newnode = array(
-				[phylonode_id] => $new_phylonode_id,
-				[parent_phylonode_id] => $cur_parent_id, 
-				[length] => $length,
-				[cvterm_name] => "phylo_interior"
-			);
-			$final[$new_phylonode_id] = $newnode;
-			$cur_parent_id = $new_phylonode_id;
+			$new_phylonode_id = new_phylonode_id($new_phylonode_id,$used_ids);
 			
-			$stack[] = $curnode;
-			$curnode = $curnode->GetChild();
+			if (count($stack) == 0)
+			{
+				# root node
+
+				$newnode = array(
+					"phylonode_id" => $new_phylonode_id,
+					"parent_phylonode_id" => 0, 
+					"length" => 0,
+					"cvterm_name" => "phylo_root"
+				);
+				$final[$new_phylonode_id] = $newnode;
+				
+				$stack[] = $curnode;
+				$id_stack[] = $new_phylonode_id;
+				$curnode = $curnode->GetChild();
+			}
+			else
+			{
+				# interior node
+
+				$length = $curnode->GetAttribute('edge_length');
+				$cur_parent_id = end($id_stack);
+
+				$newnode = array(
+					"phylonode_id" => $new_phylonode_id,
+					"parent_phylonode_id" => $cur_parent_id, 
+					"length" => $length,
+					"cvterm_name" => "phylo_interior"
+				);
+				$final[$new_phylonode_id] = $newnode;
+				
+				$stack[] = $curnode;
+				$id_stack[] = $new_phylonode_id;
+				$curnode = $curnode->GetChild();
+			}
 		}
 		else
 		{
@@ -903,7 +925,6 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final)
 				$length = 0; # can this happen?
 			}
 			$oldnode = array();
-			$phylonode_id = 1 + count[$final];
 			$existing = 0;
 			if (isset($phylonames[$name]))
 			{
@@ -911,13 +932,15 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final)
 				$oldnode = $phylonodes[$phylonode_id];
 				$existing = 1;
 			}
+			else
+			{
+				$new_phylonode_id = new_phylonode_id($new_phylonode_id,$used_ids);
+			}
 
-			# find parent from top of stack - note stack should not be empty for leaf
-			$stack_top = array_slice($stack, -1)[0];
-			$cur_parent_id = $stack_top["phylonode_id"];
+			$cur_parent_id = end($id_stack);
 
 			$newnode = array(
- 				"phylonode_id" => $phylonode_id,
+ 				"phylonode_id" => ($existing ? $phylonode_id : $new_phylonode_id),
 				"parent_phylonode_id" => $cur_parent_id, 
 				"length" => $length,
 				"cvterm_name" => "phylo_leaf",
@@ -936,7 +959,8 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final)
 										
 			while (!empty($stack) && ($curnode->GetSibling() == NULL))
 			{
-				array_pop($stack);
+				$curnode = array_pop($stack);
+				array_pop($id_stack);
 			}
 			if (empty($stack))
 			{
@@ -949,4 +973,13 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final)
 		}		
 	}
 }	
-
+function new_phylonode_id($current, &$used)
+{
+	$current++;
+	while (isset($used[$current]))
+	{
+		$current++;
+	}
+	$used[$current] = 1;
+	return $current;
+}
