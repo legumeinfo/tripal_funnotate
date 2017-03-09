@@ -441,7 +441,7 @@ function tripal_annot_family_tree_old($jobkey,$fID)
 		tripal_annot_log_error("Can't find upload file $ulpath");
 		return $text;
 	}
-	$sumpath = tripal_annot_build_file_path($jinfo->sumname); # uploaded sequence file, cleaned
+	$sumpath = tripal_annot_build_file_path($jinfo->sumname);
 	if (!file_exists($sumpath))
 	{
 		$text = "<p>Unable to find summary table file!<p>";
@@ -656,8 +656,17 @@ return $text;
 	$text .= "<p>$ret<p>";
 	return $text;
 }
+#######################################################################
 function tripal_annot_family_tree($jobkey,$fID)
 {
+	$fID = trim($fID); # just in case
+	$text = "";
+	$jinfo = tripal_annot_get_job_info(0,$jobkey);
+	if (!$jinfo)
+	{
+		$text = "<p>Job <tt>$jobkey</tt> was not found.<p>";
+		return $text;
+	}
 	$refresh_text = <<<END
  
 <script>
@@ -691,7 +700,7 @@ END;
 		$text .= "$refresh_text In Progress....";
 		return $text;
 	}
-	else if ($ret == "0")
+	else if ($ret == "0")  # note returns 404 if the job hasn't been started
 	{
 		$tree_url = "$lorax_url/trees/$sftag/FastTree/tree.nwk";
 		$fname = "phytozome_10_2.$fID";
@@ -755,7 +764,127 @@ END;
 	}
 	else
 	{
-		$text .= "Error!";
+		$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		if ($httpcode == "404")
+		{
+			$text .= "Need to load the sequences and start the job!";
+			$jinfo = tripal_annot_get_job_info(0,$jobkey);
+			if (!$jinfo)
+			{
+				$text = "<p>Job <tt>$jobkey</tt> was not found.<p>";
+				return $text;
+			}
+
+			$ulpath = tripal_annot_build_file_path($jinfo->ulname); # uploaded sequence file, cleaned
+			if ($jinfo->ultype == "n") $ulpath .= ".trans";	
+			if (!file_exists($ulpath))
+			{
+				$text = "<p>Unable to find uploaded sequence file!<p>";
+				tripal_annot_log_error("Can't find upload file $ulpath");
+				return $text;
+			}
+			$sumpath = tripal_annot_build_file_path($jinfo->sumname);
+			if (!file_exists($sumpath))
+			{
+				$text = "<p>Unable to find summary table file!<p>";
+				tripal_annot_log_error("Can't find summary file $ulpath");
+				return $text;
+			}
+			#
+			#	First: collect the user sequence names assigned to this gene family
+			#
+			$fh = fopen($sumpath,"r");
+			$line = fgets($fh); # header
+			$user_seqs = array();
+			while ( ($line = fgets($fh)) != FALSE)
+			{
+				$fields = preg_split("/\t/",$line);
+				if (trim($fields[6]) != "") # only one gene family so far but....
+				{
+					$gfs = explode(",",$fields[6]);
+					$match = 0;
+					foreach ($gfs as $i => $gf)
+					{
+						$gf = trim($gf); # it's the end of the line
+						if ($gf == $fID)
+						{
+							$match = 1;
+							break;
+						}
+					}
+					if ($match)
+					{
+						$seqname = trim($fields[0]);
+						$seqname = str_replace("|",".",$seqname); # TODO
+						$user_seqs[$seqname] = "";
+					}
+				}	
+			}
+			fclose($fh);
+
+			# 
+			# Now collect the sequences for these names
+			#
+			$fh = fopen($ulpath,"r");
+			$curName = "";
+			while ( ($line = fgets($fh)) != FALSE)
+			{
+				if (preg_match('/^>(\S+)(\s.*)/',$line,$matches))
+				{
+					$curName = $matches[1];
+					$curName = str_replace("|",".",$curName); #TODO
+				}	
+				else
+				{
+					if (isset($user_seqs[$curName]))
+					{
+						$user_seqs[$curName] .= trim($line);
+					}
+				}
+			}
+			$text .= "<pre>".print_r($user_seqs,TRUE)."</pre>";
+			#
+			# Write all the seqs to a temp file for upload to Lorax
+			#
+			$tmpdir = file_directory_temp();	
+			$gf_attach = "$tmpdir/gf_$jobkey.fa";
+			file_put_contents($gf_attach,$seqs);
+			foreach ($user_seqs as $name => $seq)
+			{
+				$entry = ">$name\n";
+				for ($i = 0; $i < strlen($seq); $i += 50)
+				{
+					$entry .= substr($seq,$i,50);
+					$entry .= "\n";
+				}
+				file_put_contents($gf_attach,$entry,FILE_APPEND);
+			}
+			$text .= "<p>$gf_attach<p>";
+			$url = "$lorax_url/trees/$fID.$jobkey/sequences";
+			$text .= "<p>Try: $url<p>";
+			curl_setopt($ch, CURLOPT_URL, $url);
+			$cfile = new CURLFile($gf_attach);
+			$post = array("peptide" => $cfile);
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+			$ret = curl_exec($ch);
+			if ($ret == FALSE)
+			{
+				$text .= "Sequence upload to lorax was not successful<p>";
+				log_error("Failed to upload sequences $gf_attach to lorax server $url");
+				return $text;
+			}
+			$url = "$lorax_url/trees/$fID.$jobkey/hmmalign_FastTree";
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, $url);
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+			$ret = curl_exec($ch);
+			$text .= "Launch job: $url<p>ret:$ret<p>";
+			
+		}
+		else
+		{
+			$text .= "Error from $status_url:$httpcode";
+		}
 		return $text;
 
 	}
@@ -903,9 +1032,9 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final, &$text
 				$cur_parent_id = end($id_stack);
 
 				$newnode = array(
-					"phylonode_id" => $new_phylonode_id,
-					"parent_phylonode_id" => $cur_parent_id, 
-					"length" => $length,
+					"phylonode_id" => (int) $new_phylonode_id,
+					"parent_phylonode_id" => (int) $cur_parent_id, 
+					"length" => (double) $length,
 					"cvterm_name" => "phylo_interior"
 				);
 				$final[$new_phylonode_id] = $newnode;
@@ -940,9 +1069,9 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final, &$text
 			$cur_parent_id = end($id_stack);
 
 			$newnode = array(
- 				"phylonode_id" => ($existing ? $phylonode_id : $new_phylonode_id),
-				"parent_phylonode_id" => $cur_parent_id, 
-				"length" => $length,
+ 				"phylonode_id" => (int) ($existing ? $phylonode_id : $new_phylonode_id),
+				"parent_phylonode_id" => (int) $cur_parent_id, 
+				"length" => (double) $length,
 				"cvterm_name" => "phylo_leaf",
 				"name" => $name,
 				"feature_id" => ($existing ? $oldnode["feature_id"] : 0),
