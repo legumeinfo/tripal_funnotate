@@ -708,13 +708,17 @@ END;
 		curl_setopt($ch, CURLOPT_URL, $tree_url);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
 		$newick_tree = trim(curl_exec($ch));
+
+		$user_seq_names = array();
+		fix_user_seq_names($newick_tree,$user_seq_names, $jobkey);
+		$text .= "<p>".print_r($user_seq_names,TRUE)."<p>";
 		$text .= "<p>$tree_url<p>$newick_tree<p>";
 
 		$phylonodes = array();
 		$phylonames = array();
 		$phylotree_root = tripal_annot_phylotree_by_name($fname, $phylonodes, $phylonames);
 		#$text .= "<pre>".print_r($phylonodes,TRUE)."</pre>";
-		$t = new Tree();
+		$t = new tripal_annot_Tree();
 		$t->Parse($newick_tree);
 		#$text .= "<pre>".$t->WriteNewick()."</pre>";
 		$final = array();
@@ -738,6 +742,7 @@ END;
 		$text .= "<pre>$json</pre>";
 		
 		$endpoint = "https://localhost:8081/chado_phylotree/$fname";
+		$endpoint .= "?hilite_node=".implode(",",$user_seq_names);
 
 		$text .= "$fname<p>";
 		$text .= <<<END
@@ -1111,4 +1116,14 @@ function new_phylonode_id($current, &$used)
 	}
 	$used[$current] = 1;
 	return $current;
+}
+function fix_user_seq_names(&$newick_tree,&$user_seq_names, $jobkey)
+{
+	$matches = array();
+	preg_match_all("/$jobkey\.([^:]+):/", $newick_tree, $matches);
+	foreach ($matches[1] as $i => $name)
+	{
+		$user_seq_names[] = $name;
+	}
+	$newick_tree = str_replace("$jobkey.","",$newick_tree); 
 }
