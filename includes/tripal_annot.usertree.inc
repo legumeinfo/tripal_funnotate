@@ -96,7 +96,7 @@ END;
 		$json = json_encode($phylotree_root);
 		#$text .= "<pre>$json</pre>";
 		
-		$endpoint = "https://localhost:8081/chado_phylotree/$fname";
+		$endpoint = "/chado_phylotree/$fname";
 		$endpoint .= "?hilite_node=".implode(",",$user_seq_names);
 
 		$text .= <<<END

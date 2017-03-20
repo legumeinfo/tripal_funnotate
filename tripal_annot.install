@@ -122,6 +122,12 @@ function tripal_annot_schema()
         'type' => 'int',
 		'default' => 0,
       ),
+      'skip_ipro' => array(
+        'description' => t('Whether to skip the InterPro stage '),
+        'type' => 'int',
+        'unsigned' => true,
+		'default' => 0,
+      ),
    ), 
     'primary key' => array('jid'),
   );

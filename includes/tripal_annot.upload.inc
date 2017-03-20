@@ -262,6 +262,24 @@ function annot_upload_form($form,&$form_state)
 		'#type' => 'hidden',
 		'#value' => $totlen,
 	);
+	$chkopts = array(
+	  '1' => t('Run InterPro analysis (significantly longer run time, but provides GO and other annotations)')
+	);
+	$form['runipr'] = array(
+		'#title' => t(''),
+		'#type' => 'checkboxes',
+		'#description' => t(''),
+		'#options' => $chkopts,
+		'#default_value' => array("1")
+	);
+#	$options = array('0' => 'no', '1' => 'yes');
+#	$form['skipipr'] = array(
+#	  '#type' => 'radios',
+#	  '#title' => t('Do you want to include InterPro analysis?'),
+#	  '#options' => $options,
+#	  '#description' => t(''),
+#	  '#default_value' => 'y',
+#		);
 	$form['submit'] = array(
 		'#type' => 'submit',
 		'#value' => 'Begin Annotation',
@@ -273,7 +291,6 @@ function annot_upload_form($form,&$form_state)
 function annot_upload_form_validate($form, &$form_state)
 {
   	$fid = $form_state['values']['fid'];
-
 	$fobj = file_load($fid);
 	$fpath = drupal_realpath($fobj->uri);
 	if (!file_exists($fpath))
@@ -305,8 +322,8 @@ function annot_upload_form_submit($form, &$form_state)
   	$type = $form_state['values']['type'];
   	$nseqs = $form_state['values']['nseqs'];
   	$totlen = $form_state['values']['totlen'];
-
 	$type = substr($type,0,1); # n or p
+	$skipipr = ($form_state['values']['runipr']['1'] == '0' ? 1 : 0);
 
 	$fobj = file_load($fid);
 	$fpath = drupal_realpath($fobj->uri);
@@ -330,6 +347,7 @@ function annot_upload_form_submit($form, &$form_state)
 		'ul_origname' => $ul_origname,
 		'ulseqs' => $nseqs,
 		'email' => $email,
+		'skip_ipro' => $skipipr,
 		'start_time' => $start_time
 	))->execute();
 
@@ -419,12 +437,18 @@ function run_tripal_annot($jid)
 	# AHRD
 	array_push($joblist, "ahrd");	
 	array_push($queued, "AHRD");	
-	# Interpro
-	array_push($joblist, "ipr");	
-	array_push($queued, "InterProScan");	
+
+	# InterPro
+	if ($jinfo->skip_ipro == 0)
+	{
+		array_push($joblist, "ipr");	
+		array_push($queued, "InterProScan");	
+	}
+
 	# HMM
 	array_push($joblist, "hmm");	
 	array_push($queued, "HMMer");	
+
 	# post
 	array_push($joblist, "post");	
 	array_push($queued, "Postprocessing");	

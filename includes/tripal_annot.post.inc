@@ -21,43 +21,47 @@ function tripal_annot_run_post($jid,$jinfo)
 	# Scan the IPR output and collect IDs and GOs from ALL the hits that have IDs, since it appears that 
 	# all of these should be regarded as significant
 
-	$ipr_path = tripal_annot_build_file_path($iprname);
-	$fh = fopen($ipr_path,"r");
-	if ($fh == FALSE)
-	{
-		return "Failed to open InterPro output";
-	}
 	$alliprs = array();
 	$allgos = array();
-	while ( ($line = fgets($fh)) != FALSE)
+
+	if ($jinfo->skip_ipro == 0)
 	{
-		$fields = preg_split("/\t/",$line);
-		$query = $fields[0];
-		if (0) #$seqtype == "n") # no longer needed since we use the translated query
+		$ipr_path = tripal_annot_build_file_path($iprname);
+		$fh = fopen($ipr_path,"r");
+		if ($fh == FALSE)
 		{
-			# IPR adds _NN to indicate the ORF number; must remove
-			$query = preg_replace('/_\d+$/','',$query);
+			return "Failed to open InterPro output";
 		}
-		$eval = $fields[8];
-		if (!is_numeric($eval))
+		while ( ($line = fgets($fh)) != FALSE)
 		{
-			$eval = 1; 
-		}
-		$iprid = $fields[11];
-		$iprdesc = trim($fields[12]);
-		if ($iprid == "NULL")
-		{
-			$iprid = "";
-		}
-		$goline = $fields[13];
-		$matches = array();
-		$nummatch = preg_match_all("|GO:(\d+)|",$goline,$matches);
-		if ($iprid != "")
-		{
-			$alliprs[$query][$iprid] = "$iprid"; # ($iprdesc)";
-			foreach ($matches[1] as $go)
+			$fields = preg_split("/\t/",$line);
+			$query = $fields[0];
+			if (0) #$seqtype == "n") # no longer needed since we use the translated query
 			{
-				$allgos[$query][$go] = $go;
+				# IPR adds _NN to indicate the ORF number; must remove
+				$query = preg_replace('/_\d+$/','',$query);
+			}
+			$eval = $fields[8];
+			if (!is_numeric($eval))
+			{
+				$eval = 1; 
+			}
+			$iprid = $fields[11];
+			$iprdesc = trim($fields[12]);
+			if ($iprid == "NULL")
+			{
+				$iprid = "";
+			}
+			$goline = $fields[13];
+			$matches = array();
+			$nummatch = preg_match_all("|GO:(\d+)|",$goline,$matches);
+			if ($iprid != "")
+			{
+				$alliprs[$query][$iprid] = "$iprid"; # ($iprdesc)";
+				foreach ($matches[1] as $go)
+				{
+					$allgos[$query][$go] = $go;
+				}
 			}
 		}
 	}

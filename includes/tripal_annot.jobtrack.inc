@@ -71,6 +71,7 @@ END;
 	$job_id = $jarr["joblist"];
 	$start_time = $jarr["start_time"];
 	$end_time = $jarr["end_time"];
+	$skipipr = $jarr["skip_ipro"];
 
 	$basetype = ($seqtype == "n" ? "basepairs" : "proteins");
 	$seqtypestr = ($seqtype == "n" ? "nucleotide" : "protein");
@@ -202,8 +203,16 @@ if ($seqtype == "n")
 	$text .= <<<END
 <p>
 BLAST output files: $blast_file_links
+END;
+
+	if ($skipipr == 0)
+	{
+		$text .= <<<END
 <br>
 <a href="$url_ipr" style="text-decoration:underline">InterPro output</a> (txt file, RAW format)
+END;
+	}
+	$text .= <<<END
 <br>
 <a href="$url_hmm" style="text-decoration:underline">HMM output</a> (txt file,tabular)
 <br>
@@ -211,8 +220,12 @@ BLAST output files: $blast_file_links
 <p>
 Summary Table 
 (right-click <a href="$url_sum" style="text-decoration:underline">download</a>) :
-<table>
 END;
+	if ($skipipr == 1)
+	{
+		$text .= "<br>(Note that InterPro was not run, hence GO and InterPro data fields are empty)<br>\n";
+	}
+	$text .= "<table>\n";
 
 $fpath = tripal_annot_build_file_path($sumname);
 $fh = fopen($fpath,"r");
