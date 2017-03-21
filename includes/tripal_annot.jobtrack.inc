@@ -10,6 +10,10 @@ error_reporting(E_ALL);
 
 function annot_job_page($jobkey)
 {
+#die(drupal_get_path("module","tripal_annot"));
+drupal_add_css("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.css");
+ 
+
 	if (isset($_POST["json"]))
 	{
 		$text = "<pre>".$_POST["json"]."</pre>";
@@ -73,7 +77,7 @@ END;
 	$end_time = $jarr["end_time"];
 	$skipipr = $jarr["skip_ipro"];
 
-	$basetype = ($seqtype == "n" ? "basepairs" : "proteins");
+	$basetype = ($seqtype == "n" ? "basepairs" : "amino acids");
 	$seqtypestr = ($seqtype == "n" ? "nucleotide" : "protein");
 
 	$text .= <<<END
@@ -225,7 +229,22 @@ END;
 	{
 		$text .= "<br>(Note that InterPro was not run, hence GO and InterPro data fields are empty)<br>\n";
 	}
-	$text .= "<table>\n";
+	$text .= <<<END
+<script>
+var oldJQ = jQuery;
+</script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.js"></script>
+<script>
+var jquery224 = jQuery.noConflict(true); 
+(function($) {                                                                  
+    var jQuery = $;                                                             
+    $(document).ready( function ($) {                                           
+    	$('#result_tbl').DataTable({colReorder: true});
+    });                                                                         
+})(jquery224);     
+</script>
+<table id='result_tbl'>
+END;
 
 $fpath = tripal_annot_build_file_path($sumname);
 $fh = fopen($fpath,"r");
@@ -287,10 +306,18 @@ while ( ($line = fgets($fh)) != FALSE)
 			$fields[6] = implode("&nbsp;",$linkouts);
 		}
 	}
-	$row = "<tr><td>".implode("</td><td>",$fields)."</td></tr>\n";
+	if ($linenum == 1)
+	{
+		$row = "<tr><th>".implode("</th><th>",$fields)."</th></tr>\n";
+		$row = "<thead>\n$row\n</thead>\n<tbody>\n";
+	}
+	else
+	{
+		$row = "<tr><td>".implode("</td><td>",$fields)."</td></tr>\n";
+	}
 	$text .= $row;
 }
-$text .= "\n</table>\n";
+$text .= "\n</tbody>\n</table>\n";
 
 $run_secs = $end_time - $start_time;
 $run_mins = floor($run_secs/60);
