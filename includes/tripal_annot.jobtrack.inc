@@ -249,6 +249,7 @@ END;
 $fpath = tripal_annot_build_file_path($sumname);
 $fh = fopen($fpath,"r");
 $linenum = 0;
+$tool_icon_tag = "<img src='".file_create_url("public://images/tools-512.png")."' width=15>";
 while ( ($line = fgets($fh)) != FALSE)
 {
 	$linenum++;
@@ -289,14 +290,15 @@ while ( ($line = fgets($fh)) != FALSE)
 			}
 			$fields[5] = implode("&nbsp;",$linkouts);
 		}
-		if (trim($fields[6]) != "") # only one gene family so far but....
+		if (trim($fields[6]) != "") # written for multiple possible families but only one so far
 		{
 			$gfs = explode(",",$fields[6]);
 			$linkouts = array();
 			foreach ($gfs as $i => $gf)
 			{
-				#$linkout = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\">$gf</a>";
-				$linkout = "<a href=\"/annot/job/$jobkey?family=$gf\" target=\"_blank\">$gf</a>";
+				$linkout1 = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\" title='View the phylotree for this family'>$gf</a>";
+				$linkout2 = "<a href=\"/annot/job/$jobkey?family=$gf\" target=\"_blank\" title='Rebuild family phylotree including your sequence'>$tool_icon_tag</a>";
+				$linkout = "<span style='white-space:nowrap'>$linkout1&nbsp;$linkout2</span>";
 				if ($i % 4 == 3)
 				{
 					$linkout .= "<br>";
