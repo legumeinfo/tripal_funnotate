@@ -79,7 +79,7 @@ END;
 		$final = array();
 		fill_out_tree_structure($phylonodes,$phylonames,$t, $final, $text);
 		#$text .= "<pre>".print_r($final,TRUE)."</pre>";
-		//populate the children[] arrays for each node
+		#populate the children[] arrays for each node
 		foreach( $final as $key => &$node ) 
 		{
 			if($node['parent_phylonode_id'] !== 0) 
@@ -99,6 +99,10 @@ END;
 		$endpoint = "/chado_phylotree/$fname";
 		$endpoint .= "?hilite_node=".implode(",",$user_seq_names);
 
+		# The tree data is posted to the display endpoint using an automatically submitted
+		# form. Before submission, the tree array is written into a hidden form
+		# variable using javascript. This gets the encoding right for upload. 
+
 		$text .= <<<END
 <script>
 var treeData = 
@@ -112,7 +116,7 @@ function add_treedata()
 }
 function do_submit()
 {
-	add_treedata();
+	add_treedata(); 
 	document.forms["mainform"].submit();
 }
 setTimeout(do_submit, 1000);
@@ -273,7 +277,6 @@ END;
 
 }
 function tripal_annot_phylotree_by_name($phylotree_name, &$phylonodes, &$phylonames) {
-  
   $sql = <<<SQL
   SELECT phylotree_id  from chado.phylotree where name = :phylotree_name
 SQL;
@@ -507,4 +510,70 @@ function fix_user_seq_names(&$newick_tree,&$user_seq_names, $jobkey)
 		$user_seq_names[] = $name;
 	}
 	$newick_tree = str_replace("$jobkey.","",$newick_tree); 
+}
+# Test with a specific tree and family
+function annot_tree_test()
+{
+	$fname = "phytozome_10_2.59026816";
+	$newick_tree = <<<END
+((ambtr.evm_27.model.AmTr_v1.0_scaffold00009.106:0.384627,orysa.LOC_Os09g39790.1:0.497892)aspartic_peptidases:0.0533533,(arath.AT2G42450.1:0.405948,(((vitvi.GSVIVT01035735001:0.184479,vitvi.GSVIVT01028293001:0.0433388):0.167499,(prupe.ppa004711m:0.156533,solly.Solyc06g083920.2.1:0.306974):0.0280413):0.0177991,((araip.Araip.Y7LP9:0.00418805,aradu.Aradu.K38DA:0.00754652):0.182909,(lotja.Lj5g3v1051320.2:0.0907082,((lotja.Lj5g3v1049250.1:0.0900244,(medtr.Medtr1g070195.1:0.0770878,cicar.Ca_07762:0.0457328):0.0287859):0.0261066,(cajca.C.cajan_29010:0.0615653,((vigra.Vradi08g08700.1:0.0432899,phavu.Phvul.007G194900.1:0.0148583):0.0646105,(glyma.Glyma.10G035200.1:0.0221098,glyma.Glyma.13G121500.1:0.0387092):0.0194157):0.0182252):0.0546181):0.0221592):0.040358):0.197562):0.071428):0.0533533):0;
+END;
+
+		$phylonodes = array();
+		$phylonames = array();
+		$phylotree_root = tripal_annot_phylotree_by_name($fname, $phylonodes, $phylonames);
+		#$text .= "<pre>".print_r($phylonodes,TRUE)."</pre>";
+		$t = new tripal_annot_Tree();
+		$t->Parse($newick_tree);
+		#$text .= "<pre>".$t->WriteNewick()."</pre>";
+		$final = array();
+		fill_out_tree_structure($phylonodes,$phylonames,$t, $final, $text);
+		#$text .= "<pre>".print_r($final,TRUE)."</pre>";
+		#populate the children[] arrays for each node
+		foreach( $final as $key => &$node ) 
+		{
+			if($node['parent_phylonode_id'] !== 0) 
+			{
+				$parent_ref = &$final[ $node['parent_phylonode_id'] ]; 
+				$parent_ref['children'][] = &$node; 
+			}
+		}
+		#$text .= "<pre>".print_r($final,TRUE)."</pre>";
+		$phylotree_root = &$final[1];
+		$phylotree_root['phylotree_name'] = $fname;
+		#$text .= "<pre>".print_r($phylotree_root,TRUE)."</pre>";
+
+		$json = json_encode($phylotree_root);
+		#$text .= "<pre>$json</pre>";
+
+		$endpoint = "/chado_phylotree/$fname";
+		$endpoint .= "?hilite_node=".implode(",",$user_seq_names);
+
+		$text .= <<<END
+<script>
+var treeData = 
+$json;
+
+function add_treedata()
+{
+	var jobj = document.getElementById("json");	
+	var treestr = JSON.stringify(treeData);
+	jobj.value = treestr;
+}
+function do_submit()
+{
+	add_treedata(); 
+	document.forms["mainform"].submit();
+}
+setTimeout(do_submit, 1000);
+</script>
+Retrieving phylogenetic tree...<p>
+
+<form name="mainform" method="post" action="$endpoint" onsubmit="add_treedata()">
+<!--input type="submit" -->
+<input type="hidden" id="json" name="json" value="">
+</form>
+END;
+
+		return $text;
 }

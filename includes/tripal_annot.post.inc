@@ -85,9 +85,9 @@ function tripal_annot_run_post($jid,$jinfo)
 		{
 			if (substr($line,0,1) == "#") continue;
 			$fields = preg_split("/\s+/",$line);
-			$query = $fields[0];
-			$target = $fields[2];
-			$evalue = $fields[4];
+			$query = $fields[2];
+			$target = $fields[0];
+			$eval = $fields[4];
 			$score = $fields[5];
 			if (!isset($best_hmm_hit[$query]))
 			{
@@ -127,7 +127,7 @@ function tripal_annot_run_post($jid,$jinfo)
 		return "Unable to create summary output file!";
 	}
 
-	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Qual\tAHRD Descriptor\tInterpro-ID\tGO Terms\tGene Family\n");
+	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Qual\tAHRD Descriptor\tInterpro-ID\tGO Terms\tGene Family\tGF Score\n");
 	$got_header == 0;
 	while ( ($line = fgets($fh1)) != FALSE)
 	{
@@ -159,7 +159,11 @@ function tripal_annot_run_post($jid,$jinfo)
 		}
 		if (isset($best_hmm_hit[$query]))
 		{
-			$newline .= $best_hmm_hit[$query];
+			$newline .= $best_hmm_hit[$query]."\t".$best_hmm_eval[$query];
+		}
+		else
+		{
+			$newline .= "\t";
 		}
 		fwrite($fh2,"$newline\n");
 	}

@@ -1,4 +1,5 @@
 <?php
+#error_reporting(E_ALL);
 
 require_once("includes/tripal_annot.config.inc");
 require_once("includes/tripal_annot.ahrd.inc");
@@ -374,4 +375,17 @@ function tripal_annot_test_errlog()
 		}
 	}
 	return 0;
+}
+function dump_all_names()
+{
+  $sql = <<<SQL
+  SELECT name  from chado.phylotree where name like 'phytozome_10_2.%' 
+SQL;
+  $result = chado_query( $sql );
+  $names = array();
+  foreach ($result as $r) {
+    array_push($names,$r->name);
+  }
+	file_put_contents("/tmp/phytonames.txt",implode("\n",$names));
+
 }

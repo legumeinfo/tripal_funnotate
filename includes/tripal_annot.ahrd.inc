@@ -164,10 +164,10 @@ function tripal_annot_run_ipr($jid,$jinfo)
 function tripal_annot_run_hmm($jid,$jinfo)
 {
 	$hmmdir = variable_get("annot_hmmdir","");
-	$hmmsearchpath = "$hmmdir/binaries/hmmsearch";
-	if (!file_exists($hmmsearchpath))
+	$hmmscanpath = "$hmmdir/binaries/hmmscan";
+	if (!file_exists($hmmscanpath))
 	{
-		return "Can't find hmmsearch!";
+		return "Can't find hmmscan!";
 	}
 
 	$hmmdb = variable_get("annot_hmmdb");
@@ -179,7 +179,7 @@ function tripal_annot_run_hmm($jid,$jinfo)
 	$query_path = tripal_annot_build_query_path($jinfo);
 	$threads = variable_get("annot_nthread",1);
 	$params = " --cpu $threads --tblout $outpath $hmmdb $query_path "; # TODO: cpu not working?
-	$cmd = "$hmmsearchpath $params";
+	$cmd = "$hmmscanpath $params";
 
 	#file_put_contents("/tmp/hmmcmd.txt",$cmd); 
 	#system("$cmd > /tmp/annothmm.txt 2>& 1" );

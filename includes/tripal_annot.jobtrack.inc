@@ -21,6 +21,7 @@ drupal_add_css("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-
 	}
 	if (isset($_GET["family"] ))
 	{
+		#return annot_tree_test();
 		$url = variable_get('annot_loraxurl','');
 		if ($url == "")
 		{
@@ -257,6 +258,7 @@ while ( ($line = fgets($fh)) != FALSE)
 	if ($linenum == 1)
 	{
 		$fields[2] = "AHRD&nbsp;Quality<br><a href='#quality' style='text-decoration:underline'>explain</a>";
+		$fields[7] = "GF&nbsp;Score";
 	}
 	if ($linenum > 1)
 	{
@@ -368,7 +370,7 @@ function annot_calc_stats(&$stats,$jarr,$sumname)
 			break; # empty line, end of file presumably
 		}
 		$f = preg_split('/\t/',$line);
-		if ( count($f) != 7) 
+		if ( count($f) != 8) 
 		{
 			$nf = count($f);
 			$ret = "<p><br><span style='color:red'>The Summary file does not have the right format!</span><br>Bad line:<br>$line<br>Num fields:$nf<p>";
