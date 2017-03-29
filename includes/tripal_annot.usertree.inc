@@ -52,11 +52,13 @@ END;
 	if ($ret == "-1")
 	{
 		$text .= $refresh_text;
+		#$text .= "<span style='color:red'>Development in progress, functionality may be temporarily impaired</span><p>\n";
 		$text .= "<p>Computing phylogenetic tree, please be patient...<p>";
 		return $text;
 	}
-	else if ($ret == "0")  # error 404 if the job hasn't been started
+	else if ($ret == "0")  # done
 	{
+		#$text .= "<span style='color:red'>Development in progress, functionality may be temporarily impaired</span><p>\n";
 		$tree_url = "$lorax_url/trees/$sftag/FastTree/tree.nwk";
 		$fname = "phytozome_10_2.$fID";
 
@@ -79,6 +81,7 @@ END;
 		$final = array();
 		fill_out_tree_structure($phylonodes,$phylonames,$t, $final, $text);
 		#$text .= "<pre>".print_r($final,TRUE)."</pre>";
+
 		#populate the children[] arrays for each node
 		foreach( $final as $key => &$node ) 
 		{
@@ -121,6 +124,7 @@ function do_submit()
 }
 setTimeout(do_submit, 1000);
 </script>
+<!--span style='color:red'>Development in progress, functionality may be temporarily impaired</span><p -->
 Retrieving phylogenetic tree...<p>
 
 <form name="mainform" method="post" action="$endpoint" onsubmit="add_treedata()">
@@ -158,6 +162,7 @@ END;
 				tripal_annot_log_error("Can't find summary file $ulpath");
 				return $text;
 			}
+			#$text .= "<span style='color:red'>Development in progress, functionality may be temporarily impaired</span><p>\n";
 			$text .= "<p>Starting phylogenetic tree computation, please be patient...<p>";
 			#
 			#	First: collect the user sequence names assigned to this gene family
@@ -393,16 +398,19 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final, &$text
 		}
 		if ($curnode->GetChild())
 		{
+			# interior or root node - get a new fake id
 			$new_phylonode_id = new_phylonode_id($new_phylonode_id,$used_ids);
 			
 			if (count($stack) == 0)
 			{
 				# root node
 
+				$name = $curnode->GetLabel();
 				$newnode = array(
 					"phylonode_id" => $new_phylonode_id,
 					"parent_phylonode_id" => 0, 
 					"length" => 0,
+		#			"name" => $name,
 					"cvterm_name" => "phylo_root"
 				);
 				$final[$new_phylonode_id] = $newnode;
@@ -467,10 +475,10 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final, &$text
 				"feature_name" => $name,
 				"feature_node_id" => ($existing? $oldnode["feature_node_id"] : 0),
 				"organism_id" =>  ($existing? $oldnode["organism_id"] : 0),
-				"common_name" =>  ($existing? $oldnode["common_name"] : ""),
-				"abbreviation" =>  ($existing? $oldnode["abbreviation"] : ""),
-				"genus" =>  ($existing? $oldnode["genus"] : ""),
-				"species" =>  ($existing? $oldnode["species"] : ""),
+				"common_name" =>  ($existing? $oldnode["common_name"] : "User Sequence"),
+				"abbreviation" =>  ($existing? $oldnode["abbreviation"] : "USeq"),
+				"genus" =>  ($existing? $oldnode["genus"] : "User"),
+				"species" =>  ($existing? $oldnode["species"] : "sequence"),
 				"organism_node_id" =>  ($existing? $oldnode["organism_node_id"] : 0)
 			);
 			$final[$phylonode_id] = $newnode;
@@ -541,7 +549,8 @@ END;
 		#$text .= "<pre>".print_r($final,TRUE)."</pre>";
 		$phylotree_root = &$final[1];
 		$phylotree_root['phylotree_name'] = $fname;
-		#$text .= "<pre>".print_r($phylotree_root,TRUE)."</pre>";
+		$text .= "<pre>".print_r($phylotree_root,TRUE)."</pre>";
+return $text;
 
 		$json = json_encode($phylotree_root);
 		#$text .= "<pre>$json</pre>";
