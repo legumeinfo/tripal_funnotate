@@ -135,10 +135,10 @@ END;
 
 		return $text;
 	}
-	else
+	else   # status return other than -1, 0
 	{
 		$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		if ($httpcode == "404")
+		if ($httpcode == "404")  # hasn't been started
 		{
 			$jinfo = tripal_annot_get_job_info(0,$jobkey);
 			if (!$jinfo)
@@ -270,7 +270,7 @@ END;
 			$text .= $refresh_text;
 			
 		}
-		else
+		else  # a different http status - assume failure
 		{
 			$text .= "Unable to compute tree (error $httpcode)";
 			tripal_annot_log_error("Error from $status_url:$httpcode");
@@ -477,8 +477,8 @@ function fill_out_tree_structure(&$phylonodes, &$phylonames, $t, &$final, &$text
 				"organism_id" =>  ($existing? $oldnode["organism_id"] : 0),
 				"common_name" =>  ($existing? $oldnode["common_name"] : "User Sequence"),
 				"abbreviation" =>  ($existing? $oldnode["abbreviation"] : "USeq"),
-				"genus" =>  ($existing? $oldnode["genus"] : "User"),
-				"species" =>  ($existing? $oldnode["species"] : "sequence"),
+				"genus" =>  ($existing? $oldnode["genus"] : "*User"),
+				"species" =>  ($existing? $oldnode["species"] : "sequences"),
 				"organism_node_id" =>  ($existing? $oldnode["organism_node_id"] : 0)
 			);
 			$final[$phylonode_id] = $newnode;

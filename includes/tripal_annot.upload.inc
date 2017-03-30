@@ -270,7 +270,7 @@ function annot_upload_form($form,&$form_state)
 		'#type' => 'checkboxes',
 		'#description' => t(''),
 		'#options' => $chkopts,
-		'#default_value' => array("1")
+		'#default_value' => array("0")
 	);
 #	$options = array('0' => 'no', '1' => 'yes');
 #	$form['skipipr'] = array(
