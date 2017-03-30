@@ -6,6 +6,7 @@ require_once("includes/tripal_annot.ahrd.inc");
 require_once("includes/tripal_annot.upload.inc");
 require_once("includes/tripal_annot.jobtrack.inc");
 require_once("includes/tripal_annot.post.inc");
+require_once("includes/tripal_annot.util.inc");
 require_once("theme/tripal_annot.theme.inc");
 require_once("includes/Spyc.php");
 
@@ -46,14 +47,6 @@ function tripal_annot_menu()
   	$items['annot/job/%'] = array(
 		'title' => 'Annotation Job',
 		'page callback' => 'annot_job_page',
-		'page arguments' => array(2), // The matched wildcard.
-		'access arguments' => array('access content'),
-		'type' => MENU_CALLBACK,
-  	);
-
-  	$items['annot/test/%'] = array(
-		'title' => 'Annotation Test',
-		'page callback' => 'annot_test_page',
 		'page arguments' => array(2), // The matched wildcard.
 		'access arguments' => array('access content'),
 		'type' => MENU_CALLBACK,
@@ -232,12 +225,6 @@ function annot_start_form_submit($form, &$form_state)
 	drupal_goto("annot/upload/$fid",array(query => array("seqtype" => $seqtype)) );
 }
 
-function tripal_annot_mail($key, &$message, $params) 
-{
-      $message['subject'] = "LIS Annotation Job";
-      $message['body'][] = $params['msg'];
-}
-
 function annot_update_schema()
 {
 }
@@ -348,33 +335,6 @@ function tripal_annot_init()
 
 #   drupal_add_js (drupal_get_path('theme', 'tripal').'/js/tripal_annot.js');
 #   drupal_add_css(drupal_get_path('theme', 'tripal').'/css/tripal_annot.css');
-}
-function path_from_fid($fid)
-{
-	$fobj = file_load($fid);
-	return drupal_realpath($fobj->uri);
-}
-function tripal_annot_test_errlog()
-{
-	$path = variable_get('annot_elog', '');
-	if(!empty($path)) 
-	{
-		if(file_exists($path) ) 
-		{
-			system("chmod 755 $path");
-			return 1;
-		}
-		else
-		{
-			file_put_contents($path,"Annot error log");
-			if(file_exists($path) ) 
-			{
-				system("chmod 755 $path");
-				return 1;
-			}
-		}
-	}
-	return 0;
 }
 function dump_all_names()
 {

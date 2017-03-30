@@ -14,12 +14,12 @@ function annot_job_page($jobkey)
 drupal_add_css("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.css");
  
 
-	if (isset($_POST["json"]))
+	if (isset($_GET["msa"]))
 	{
-		$text = "<pre>".$_POST["json"]."</pre>";
-		return $text;
+		# request for lorax msa, should be msa=family_id
+		return annot_get_msa($jobkey,$_GET["msa"]);
 	}
-	if (isset($_GET["family"] ))
+	else if (isset($_GET["family"] ))
 	{
 		#return annot_tree_test();
 		$url = variable_get('annot_loraxurl','');
@@ -393,12 +393,6 @@ function annot_calc_stats(&$stats,$jarr,$sumname)
 	$stats["pctgo"] = floor((100*$numgo)/$numSeqs);
 	return $ret;
 }
-#TODO is this robust?
-function tripal_annot_file_url($fname)
-{
-	$subdir = variable_get("annot_files_dir");
-	return file_create_url("public://tripal/$subdir/$fname");
-}
 function annot_cancel_form($form,&$form_state)
 {
 	$jid = $form_state['build_info']['args'][0];
@@ -458,4 +452,8 @@ function build_blast_file_links($jobkey)
 		}
 	}
 	return implode(", ",$links);
+}
+function annot_get_msa($jobkey, $fID)
+{
+
 }

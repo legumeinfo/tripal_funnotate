@@ -611,81 +611,7 @@ function tripal_annot_run_blast($jid, $num, $jinfo)
 	}
 	return "";
 }
-function tripal_annot_update_field($jid,$field,$val)
-{
-	db_update('tripal_annot')
-		->fields(array(
-	        "$field" => $val
-	        )
-		)
-		->condition('jid', $jid)
-		->execute();
-	
-}
 
-# Check or attempt to create the files dir specified in config. 
-# This will be done during config, however if a system is cloned or mirrored
-# then it is possible for things like /tmp subdirectories to be missing.
-#
-function tripal_annot_check_file_dir()
-{
-	$dirname = variable_get("annot_files_dir");
-	$dir = DRUPAL_ROOT."/".tripal_get_files_dir()."/$dirname";
-	if (is_dir($dir))
-	{
-		return 1;
-	}
-	else
-	{
-		if (is_link($dir) )
-		{
-			$realpath = readlink($dir);
-			mkdir($realpath,755);
-			system("chmod 755 $realpath");
-		}
-		else
-		{
-			mkdir($dir,755);
-			system("chmod 755 $dir");
-		}
-	}
-	if (is_dir($dir))
-	{
-		return 1;
-	}
-	return 0;
-}
-function tripal_annot_file_dir()
-{
-	$dirname = variable_get("annot_files_dir");
-	return DRUPAL_ROOT."/".tripal_get_files_dir($dirname); # throws an error if doesn't exist
-}
-function tripal_annot_build_file_path($filename)
-{
-	return tripal_annot_file_dir()."/$filename";
-}
-function tripal_annot_get_job_info($jid,$jobkey)
-{
-	if ($jid != 0)
-	{
-		$res = db_query("select * from tripal_annot where jid=$jid");
-		if ($res)
-		{
-			$r = $res->fetchObject();			
-			return $r;
-		}
-	}
-	else if ($jobkey != "")
-	{
-		$res = db_query("select * from tripal_annot where jobkey='$jobkey'");
-		if ($res)
-		{
-			$r = $res->fetchObject();			
-			return $r;
-		}
-	}
-	return FALSE;
-}
 function tripal_annot_run_escan($jid,$jinfo)
 {
 	$jobkey = $jinfo->jobkey;
@@ -737,19 +663,6 @@ function tripal_annot_run_escan($jid,$jinfo)
 	return "";
 }
 #
-# Log to the error log file
-# Errors including path information go here, not seen by user
-#
-function tripal_annot_log_error($err)
-{
-	$path = variable_get('annot_elog', '');
-	if (substr($err,-1) != "\n")
-	{
-		$err .= "\n";
-	}
-	$ret =  file_put_contents($path,$err,FILE_APPEND);
-}
-#
 # this function builds a path to the final query file, after
 # cleaning, renaming, and possible translation through estscan
 #
@@ -759,18 +672,9 @@ function tripal_annot_build_query_path($jinfo)
 	if ($jinfo->ultype == "n") $name .= ".trans";
 	return tripal_annot_build_file_path($name);
 }
-function tripal_annot_build_blast_output_path($jobkey,$dbnum)
+#TODO is this robust?
+function tripal_annot_file_url($fname)
 {
-	$name = "blast_$jobkey"."_$dbnum";
-	return tripal_annot_build_file_path($name);
-}
-function tripal_annot_dump_object($title,$obj)
-{
-	$text = print_r($obj,TRUE);
-	tripal_annot_log_error("---------------------\n$title\n$text\n---------------\n");
-}
-function tripal_annot_clear_errlog()
-{
-	$path = variable_get('annot_elog', '');
-	file_put_contents($path,"");
+	$subdir = variable_get("annot_files_dir");
+	return file_create_url("public://tripal/$subdir/$fname");
 }
