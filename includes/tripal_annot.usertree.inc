@@ -101,6 +101,7 @@ END;
 		
 		$endpoint = "/chado_phylotree/$fname";
 		$endpoint .= "?hilite_node=".implode(",",$user_seq_names);
+		$msa_endpoint = "/annot/job/$jobkey?msa=$fID";
 
 		# The tree data is posted to the display endpoint using an automatically submitted
 		# form. Before submission, the tree array is written into a hidden form
@@ -108,6 +109,7 @@ END;
 
 		$text .= <<<END
 <script>
+var msaURL = '$msa_endpoint';
 var treeData = 
 $json;
 
@@ -116,6 +118,8 @@ function add_treedata()
 	var jobj = document.getElementById("json");	
 	var treestr = JSON.stringify(treeData);
 	jobj.value = treestr;
+	jobj = document.getElementById("msa");	
+	jobj.value = msaURL;
 }
 function do_submit()
 {
@@ -130,6 +134,7 @@ Retrieving phylogenetic tree...<p>
 <form name="mainform" method="post" action="$endpoint" onsubmit="add_treedata()">
 <!--input type="submit" -->
 <input type="hidden" id="json" name="json" value="">
+<input type="hidden" id="msa" name="msa" value="">
 </form>
 END;
 
@@ -512,12 +517,13 @@ function new_phylonode_id($current, &$used)
 function fix_user_seq_names(&$newick_tree,&$user_seq_names, $jobkey)
 {
 	$matches = array();
-	preg_match_all("/$jobkey\.([^:]+):/", $newick_tree, $matches);
+	#preg_match_all("/$jobkey\.([^:]+):/", $newick_tree, $matches);
+	preg_match_all("/($jobkey\.[^:]+):/", $newick_tree, $matches);
 	foreach ($matches[1] as $i => $name)
 	{
 		$user_seq_names[] = $name;
 	}
-	$newick_tree = str_replace("$jobkey.","",$newick_tree); 
+	#$newick_tree = str_replace("$jobkey.","",$newick_tree); 
 }
 # Test with a specific tree and family
 function annot_tree_test()

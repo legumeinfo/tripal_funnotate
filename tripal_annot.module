@@ -7,7 +7,6 @@ require_once("includes/tripal_annot.upload.inc");
 require_once("includes/tripal_annot.jobtrack.inc");
 require_once("includes/tripal_annot.post.inc");
 require_once("includes/tripal_annot.util.inc");
-require_once("theme/tripal_annot.theme.inc");
 require_once("includes/Spyc.php");
 
 #####################################################################################

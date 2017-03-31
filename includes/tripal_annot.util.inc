@@ -1,4 +1,7 @@
 <?php
+#
+# Utility functions
+#
 function tripal_annot_build_blast_output_path($jobkey,$dbnum)
 {
 	$name = "blast_$jobkey"."_$dbnum";
@@ -134,5 +137,3 @@ function tripal_annot_mail($key, &$message, $params)
       $message['subject'] = "LIS Annotation Job";
       $message['body'][] = $params['msg'];
 }
-
-

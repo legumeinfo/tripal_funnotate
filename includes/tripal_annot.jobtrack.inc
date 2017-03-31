@@ -5,13 +5,13 @@ error_reporting(E_ALL);
 #####################################################################################
 #
 # Job tracking page: Track job status and provide results for download
+# When used with GET parameters, also initiates tree computation and MSA retrieval
 #
 #######################################################################################
 
 function annot_job_page($jobkey)
 {
 #die(drupal_get_path("module","tripal_annot"));
-drupal_add_css("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.css");
  
 
 	if (isset($_GET["msa"]))
@@ -34,6 +34,7 @@ drupal_add_css("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-
 		}
 		return tripal_annot_family_tree($jobkey,$fID);
 	}
+drupal_add_css("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.css");
 	$text = "";
 	$refresh_text = <<<END
  
@@ -455,5 +456,56 @@ function build_blast_file_links($jobkey)
 }
 function annot_get_msa($jobkey, $fID)
 {
+	$jinfo = tripal_annot_get_job_info(0,$jobkey);
+	if ($jinfo == FALSE)
+	{
+		return "";
+	}
+	$sftag = "$fID.$jobkey";
+	$lorax_url = variable_get('annot_loraxurl');
+	$ch = curl_init();
+	$msa_url = "$lorax_url/trees/$sftag/alignment";
+	curl_setopt($ch, CURLOPT_URL, $msa_url);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+	$msa = trim(curl_exec($ch));
+	$lines = explode("\n",$msa);
+	$msa = "";
+	$matches = array();
+	$seqs = array();
+	$curseq = "";
+	foreach ($lines as $line)
+	{
+		if (preg_match('/^>(\S+)/',$line,$matches))
+		{
+			#$msa .= ">".$matches[1]."\n";
+			$curseq = $matches[1];
+		}
+		else
+		{
+			$seqs[$curseq] .= trim($line);
+		}
+	}
 
+	$job_prefix = $jobkey.".";
+	foreach ($seqs as $curseq => $seq)
+	{
+		if (0 == strncmp($curseq,$job_prefix,strlen($job_prefix)))
+		{
+			#$curseq = substr($curseq,strlen($job_prefix));
+		}
+		$msa .= ">$curseq\n";
+		for ($i = 0; $i < strlen($seq); $i += 50)
+		{
+			$msa .= substr($seq,$i,50)."\n";
+		}
+	}
+	#$tmpfile = "/tmp/$jobkey.msa.txt";
+	#file_put_contents($tmpfile,$msa);
+	$size = strlen($msa); #filesize($tmpfile);
+	drupal_add_http_header('Content-Type', 'text/plain');
+	drupal_add_http_header('Content-Length', $size);
+	#drupal_add_http_header('Content-Disposition', "attachment; filename='msa.txt'");
+	echo $msa;
+	drupal_exit();
+	return "";
 }
