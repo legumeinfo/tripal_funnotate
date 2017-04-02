@@ -311,6 +311,16 @@ while ( ($line = fgets($fh)) != FALSE)
 			$fields[6] = implode("&nbsp;",$linkouts);
 		}
 	}
+
+	#
+	# If the user did not run ipr, remove those columns from the table. 
+	#
+	if ($skipipr == 1)
+	{
+		unset($fields[4]);
+		unset($fields[5]);
+	}
+
 	if ($linenum == 1)
 	{
 		$row = "<tr><th>".implode("</th><th>",$fields)."</th></tr>\n";
