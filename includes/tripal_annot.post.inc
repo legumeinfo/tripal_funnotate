@@ -112,12 +112,13 @@ function tripal_annot_run_post($jid,$jinfo)
 	#
 	$best_blast_target = array();
 	$best_blast_score = array();
+	$best_blast_eval = array();
 	for ($dbnum = 1; $dbnum <= 4; $dbnum++) # TODO: hard coded to 4 files
 	{
 		$outpath = tripal_annot_build_blast_output_path($jobkey,$dbnum);
 		if (file_exists($outpath))
 		{
-			load_best_blast($outpath,$best_blast_target,$best_blast_score);
+			load_best_blast($outpath,$best_blast_target,$best_blast_score, $best_blast_eval);
 		}
 	}
 	#
@@ -198,7 +199,7 @@ function tripal_annot_run_post($jid,$jinfo)
 		if (isset($best_blast_target[$query]))
 		{
 			$outfields[8] = $best_blast_target[$query];
-			$outfields[9] = $best_blast_score[$query];
+			$outfields[9] = $best_blast_eval[$query];
 		}
 		$newline = implode("\t",$outfields);
 		fwrite($fh2,"$newline\n");
@@ -233,7 +234,7 @@ function find_matching_query($longname,&$shortname_array)
 	}
 	return "";
 }
-function load_best_blast($outpath,&$best_target,&$best_score)
+function load_best_blast($outpath,&$best_target,&$best_score, &$best_eval)
 {
 	$fh = fopen($outpath,"r");
 	if ($fh == FALSE)
@@ -246,12 +247,14 @@ function load_best_blast($outpath,&$best_target,&$best_score)
 		$fields = preg_split("/\t/",$line);
 		$query 	= trim($fields[0]);
 		$target	= trim($fields[1]);
+		$eval 	= trim($fields[10]);
 		$score 	= trim($fields[11]);
 		
 		if (!isset($best_target[$query]) || $score > $best_score[$query])
 		{
 			$best_target[$query] = $target;
 			$best_score[$query] = $score;
+			$best_eval[$query] = $eval;
 		}
 	}
 	

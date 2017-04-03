@@ -340,11 +340,11 @@ while ( ($line = fgets($fh)) != FALSE)
 }
 $text .= "\n</tbody>\n</table>\n";
 $text .= "<sup>1</sup> GF Score = full-sequence E-value from hmmscan<br>";
-$text .= "<sup>2</sup> Blast Score = bit score<br>";
+$text .= "<sup>2</sup> Blast Score: E-value is displayed, however best hit is chosen using bit score <br>";
 
 $text .= <<<END
 <a name="quality"></a>
-<sup>3</sup>AHRD Quality Scores:
+<sup>3</sup> AHRD Quality Scores are as follows:
 <p>
 <pre>
 The AHRD quality-code consists of a three character string, where each 
