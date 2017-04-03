@@ -147,7 +147,7 @@ Annotation pipeline:
 4. Assignment of <a style="text-decoration:underline" href="http://www.legumeinfo.org/search/phylotree">phytozome gene family</a> (using <a  style="text-decoration:underline" href="http://hmmer.org/">HMMer</a>)
 5. Best-hit extraction by <a  style="text-decoration:underline" href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD</a> (Automated Human Readable Descriptions)
 
-Results include: Phytozome gene family, AHRD descriptor, GO and InterPro ID (the latter two
+Results include: Phytozome gene family, AHRD descriptor, best BLAST hits, GO and InterPro ID (the latter two
 only if InterProScan is run). 
 Complete output files for each analysis are also provided. 
 

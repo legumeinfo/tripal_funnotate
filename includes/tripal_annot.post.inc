@@ -107,7 +107,19 @@ function tripal_annot_run_post($jid,$jinfo)
 			}
 		}
 	}
-
+	#
+	# Identify the best-blast hits for each query
+	#
+	$best_blast_target = array();
+	$best_blast_eval = array();
+	for ($dbnum = 1; $dbnum <= 4; $dbnum++) # TODO: hard coded to 4 files
+	{
+		$outpath = tripal_annot_build_blast_output_path($jobkey,$dbnum);
+		if (file_exists($outpath))
+		{
+			load_best_blast($outpath,$best_blast_target,$best_blast_eval);
+		}
+	}
 	#
 	# Create the summary output file
 	#
@@ -127,7 +139,7 @@ function tripal_annot_run_post($jid,$jinfo)
 		return "Unable to create summary output file!";
 	}
 
-	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Qual\tAHRD Descriptor\tInterpro-ID\tGO Terms\tGene Family\tGF Score\n");
+	fwrite($fh2,"Query\tAHRD Blast Hit\tAHRD Qual\tAHRD Descriptor\tInterpro-ID\tGO Terms\tGene Family\tGF Score\tBest Blast Hit\tBest Blast Score\n");
 	$got_header == 0;
 	while ( ($line = fgets($fh1)) != FALSE)
 	{
@@ -136,20 +148,36 @@ function tripal_annot_run_post($jid,$jinfo)
 			$got_header++;
 			continue;
 		}
+		$outfields = array();	
 		$fields = preg_split("/\t/",$line);
 		$query = trim($fields[0]);
 		$hit = trim($fields[1]);
 		$qual = trim($fields[2]);
 		$desc = trim($fields[3]);
+
+		$outfields[0] = $query;
+		$outfields[1] = $hit;
+		$outfields[2] = $qual;
+		$outfields[3] = $desc;
+
+		$outfields[4] = ""; # IPR ID
+		$outfields[5] = ""; # GO
+		$outfields[6] = ""; # Gene Fam
+		$outfields[7] = ""; # HMM score
+		$outfields[8] = ""; # Best-blast hit
+		$outfields[9] = ""; # Best-blast score
+
 		$ipr_query = find_matching_query($query,$alliprs); 
 		$newline = "$query\t$hit\t$qual\t$desc\t";
 		if ($ipr_query != "")
 		{
 			$newline .= implode(",",$alliprs[$ipr_query]);
+			$outfields[4] = implode(",",$alliprs[$ipr_query]);
 			$newline .= "\t";
 			if (isset($allgos[$ipr_query]))
 			{
 				$newline .= implode(",",$allgos[$ipr_query]);
+				$outfields[5] = implode(",",$allgos[$ipr_query]);
 			}
 			$newline .= "\t";
 		}
@@ -160,11 +188,19 @@ function tripal_annot_run_post($jid,$jinfo)
 		if (isset($best_hmm_hit[$query]))
 		{
 			$newline .= $best_hmm_hit[$query]."\t".$best_hmm_eval[$query];
+			$outfields[6] = $best_hmm_hit[$query];
+			$outfields[7] = $best_hmm_eval[$query];
 		}
 		else
 		{
 			$newline .= "\t";
 		}
+		if (isset($best_blast_target[$query]))
+		{
+			$outfields[8] = $best_blast_target[$query];
+			$outfields[9] = $best_blast_eval[$query];
+		}
+		$newline = implode("\t",$outfields);
 		fwrite($fh2,"$newline\n");
 	}
 	fclose($fh1);
@@ -196,4 +232,27 @@ function find_matching_query($longname,&$shortname_array)
 		}
 	}
 	return "";
+}
+function load_best_blast($outpath,&$best_target,&$best_eval)
+{
+	$fh = fopen($outpath,"r");
+	if ($fh == FALSE)
+	{
+		tripal_annot_log_error("Failed to open blast output: $outpath");
+		return;
+	}
+	while ( ($line = fgets($fh)) != FALSE)
+	{
+		$fields = preg_split("/\t/",$line);
+		$query 	= trim($fields[0]);
+		$target	= trim($fields[1]);
+		$eval 	= trim($fields[10]);
+		
+		if (!isset($best_target[$query]) || $eval < $best_eval[$query])
+		{
+			$best_target[$query] = $target;
+			$best_eval[$query] = $eval;
+		}
+	}
+	
 }

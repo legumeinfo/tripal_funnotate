@@ -229,7 +229,7 @@ Summary Table
 END;
 	if ($skipipr == 1)
 	{
-		$text .= "<br>(Note that InterPro was not run, hence GO and InterPro data fields are empty)<br>\n";
+		#$text .= "<br>(Note that InterPro was not run, hence GO and InterPro data fields are empty)<br>\n";
 	}
 	$text .= <<<END
 <script>
@@ -254,6 +254,10 @@ $linenum = 0;
 $tool_icon_tag = "<img src='".file_create_url("public://images/tools-512.png")."' width=15>";
 while ( ($line = fgets($fh)) != FALSE)
 {
+	if (!preg_match('/\S/',$line))
+	{
+		continue;
+	}
 	$linenum++;
 	$fields = preg_split("/\t/",$line);
 	if ($linenum == 1)
@@ -351,9 +355,13 @@ The meaning by position is as follows:
 1	Bit score of the blast result is over 50 and e-value is better than e-10
 2	Overlap of the blast result is at least 60%
 3	Top token score of assigned descriptor is at least 0.5
-</pre>
+
+Note that the Best Blast Hit may differ from the AHRD Blast Hit because AHRD factors 
+in the information content of the sequence description. 
+
 For further explanation of these codes and the AHRD algorithm, see
 <a href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD Documentation</a>.
+</pre>
 END;
 
 	return $text;
@@ -381,7 +389,7 @@ function annot_calc_stats(&$stats,$jarr,$sumname)
 			break; # empty line, end of file presumably
 		}
 		$f = preg_split('/\t/',$line);
-		if ( count($f) != 8) 
+		if ( count($f) != 10) 
 		{
 			$nf = count($f);
 			$ret = "<p><br><span style='color:red'>The Summary file does not have the right format!</span><br>Bad line:<br>$line<br>Num fields:$nf<p>";
