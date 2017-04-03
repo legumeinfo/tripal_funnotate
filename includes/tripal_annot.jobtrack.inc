@@ -262,8 +262,10 @@ while ( ($line = fgets($fh)) != FALSE)
 	$fields = preg_split("/\t/",$line);
 	if ($linenum == 1)
 	{
-		$fields[2] = "AHRD&nbsp;Quality<br><a href='#quality' style='text-decoration:underline'>explain</a>";
-		$fields[7] = "GF&nbsp;Score";
+		#$fields[2] = "AHRD&nbsp;Quality<br><a href='#quality' style='text-decoration:underline'>explain</a>";
+		$fields[2] = "AHRD&nbsp;Quality<sup>3</sup>";
+		$fields[7] = "GF&nbsp;Score<sup>1</sup>";
+		$fields[9] = "Blast&nbsp;Score<sup>2</sup>";
 	}
 	if ($linenum > 1)
 	{
@@ -337,15 +339,12 @@ while ( ($line = fgets($fh)) != FALSE)
 	$text .= $row;
 }
 $text .= "\n</tbody>\n</table>\n";
-
-$run_secs = $end_time - $start_time;
-$run_mins = floor($run_secs/60);
-$run_secs -= 60*$run_mins;
-$text .= "<span style='font-size:11px'>job duration:$run_mins minutes, $run_secs seconds</span><br>"; 
+$text .= "<sup>1</sup> GF Score = full-sequence E-value from hmmscan<br>";
+$text .= "<sup>2</sup> Blast Score = bit score<br>";
 
 $text .= <<<END
 <a name="quality"></a>
-<b>AHRD Quality Scores:</b>
+<sup>3</sup>AHRD Quality Scores:
 <p>
 <pre>
 The AHRD quality-code consists of a three character string, where each 
@@ -363,6 +362,10 @@ For further explanation of these codes and the AHRD algorithm, see
 <a href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD Documentation</a>.
 </pre>
 END;
+$run_secs = $end_time - $start_time;
+$run_mins = floor($run_secs/60);
+$run_secs -= 60*$run_mins;
+$text .= "<span style='font-size:11px'>job duration:$run_mins minutes, $run_secs seconds</span><br>"; 
 
 	return $text;
 }
