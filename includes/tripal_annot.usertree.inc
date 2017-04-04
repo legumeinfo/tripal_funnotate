@@ -514,16 +514,16 @@ function new_phylonode_id($current, &$used)
 	$used[$current] = 1;
 	return $current;
 }
-function fix_user_seq_names(&$newick_tree,&$user_seq_names, $jobkey)
+function fix_user_seq_names(&$any_data,&$user_seq_names, $jobkey)
 {
 	$matches = array();
-	#preg_match_all("/$jobkey\.([^:]+):/", $newick_tree, $matches);
-	preg_match_all("/($jobkey\.[^:]+):/", $newick_tree, $matches);
+	preg_match_all("/$jobkey\.([^:]+):/", $any_data, $matches);
+	#preg_match_all("/($jobkey\.[^:]+):/", $any_data, $matches);
 	foreach ($matches[1] as $i => $name)
 	{
-		$user_seq_names[] = $name;
+		$user_seq_names[] = "USR.$name";
 	}
-	#$newick_tree = str_replace("$jobkey.","",$newick_tree); 
+	$any_data = str_replace("$jobkey.","USR.",$any_data); 
 }
 # Test with a specific tree and family
 function annot_tree_test()

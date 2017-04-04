@@ -34,7 +34,7 @@ function annot_job_page($jobkey)
 		}
 		return tripal_annot_family_tree($jobkey,$fID);
 	}
-drupal_add_css("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.css");
+#drupal_add_css("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.css");
 	$text = "";
 	$refresh_text = <<<END
  
@@ -237,6 +237,22 @@ var oldJQ = jQuery;
 </script>
 <script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.js"></script>
 <script>
+function loadjscssfile(filename, filetype){
+    if (filetype=="js"){ //if filename is a external JavaScript file
+        var fileref=document.createElement('script')
+        fileref.setAttribute("type","text/javascript")
+        fileref.setAttribute("src", filename)
+    }
+    else if (filetype=="css"){ //if filename is an external CSS file
+        var fileref=document.createElement("link")
+        fileref.setAttribute("rel", "stylesheet")
+        fileref.setAttribute("type", "text/css")
+        fileref.setAttribute("href", filename)
+    }
+    if (typeof fileref!="undefined")
+        document.getElementsByTagName("head")[0].appendChild(fileref)
+}
+loadjscssfile("https://cdn.datatables.net/v/dt/jq-2.2.4/dt-1.10.13/cr-1.3.2/fc-3.2.2/fh-3.1.2/sc-1.4.2/se-1.2.0/datatables.min.css", "css");
 var jquery224 = jQuery.noConflict(true); 
 (function($) {                                                                  
     var jQuery = $;                                                             
@@ -245,7 +261,7 @@ var jquery224 = jQuery.noConflict(true);
     });                                                                         
 })(jquery224);     
 </script>
-<table id='result_tbl'>
+<table id='result_tbl' class='display compact'>
 END;
 
 $fpath = tripal_annot_build_file_path($sumname);
@@ -512,7 +528,8 @@ function annot_get_msa($jobkey, $fID)
 	{
 		if (0 == strncmp($curseq,$job_prefix,strlen($job_prefix)))
 		{
-			#$curseq = substr($curseq,strlen($job_prefix));
+			$curseq = substr($curseq,strlen($job_prefix));
+			$curseq = "USR.$curseq";
 		}
 		$msa .= ">$curseq\n";
 		for ($i = 0; $i < strlen($seq); $i += 50)
