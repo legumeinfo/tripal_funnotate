@@ -207,7 +207,7 @@ if ($seqtype == "n")
 }
 
 	$text .= <<<END
-<p>
+<br>
 BLAST output files: $blast_file_links
 END;
 
