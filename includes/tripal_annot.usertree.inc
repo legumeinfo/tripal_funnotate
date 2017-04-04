@@ -173,6 +173,13 @@ END;
 			#	First: collect the user sequence names assigned to this gene family
 			#
 			$fh = fopen($sumpath,"r");
+			if (!$fh)
+			{
+				$text = "<p>Unable to open summary table file!<p>";
+				tripal_annot_log_error("Can't open summary file $sumpath");
+				return $text;
+			}
+
 			$line = fgets($fh); # header
 			$user_seqs = array();
 			while ( ($line = fgets($fh)) != FALSE)
@@ -201,11 +208,16 @@ END;
 				}	
 			}
 			fclose($fh);
-
 			# 
 			# Now collect the sequences for these names
 			#
 			$fh = fopen($ulpath,"r");
+			if (!$fh)
+			{
+				$text = "<p>Unable to open upload file!<p>";
+				tripal_annot_log_error("Can't open upload file $ulpath");
+				return $text;
+			}
 			$curName = "";
 			while ( ($line = fgets($fh)) != FALSE)
 			{
