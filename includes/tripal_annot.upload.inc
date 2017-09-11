@@ -207,7 +207,7 @@ function check_seq_type($seq, $name, $seqtype, &$wrongArray)
 }
 function clean_sequence($seq,$seqtype,&$badchars)
 {
-	$cleaned = "";
+	$seq = preg_replace('/\s/', '', $seq);
 	if ($seqtype == "n")
 	{
 		$cleaned = preg_replace('/[^agctn]/','n',$seq,-1,$badchars);
