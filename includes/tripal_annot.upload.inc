@@ -37,8 +37,10 @@ END;
 	$fname = $fobj->filename;
 	$fsize = $fobj->filesize;
 	$text = "Uploaded file: $fname ($fsize bytes)<p>";
-	system("chmod 755 $fpath");
+	system("chmod 755 '$fpath'");
 	$fh = fopen($fpath,"r");
+    #strip out problematic characters from file name: in tribute to Cr_LG_4-23617344..23623012 (- strand).fasta!
+    $fpath = preg_replace('([\s~\[\]\(\)])', '', $fpath);
 
 	# Clean the file of unusable chars and also make sure the seqs are all nonempty
 	# The cleaned file is not used for anything until the user clicks to start the analysis
@@ -328,6 +330,9 @@ function annot_upload_form_submit($form, &$form_state)
 	$fobj = file_load($fid);
 	$fpath = drupal_realpath($fobj->uri);
 	$ul_origname = drupal_basename($fpath);
+    #FIXME: why do we need to have this in two places?
+    #strip out problematic characters from file name: in tribute to Cr_LG_4-23617344..23623012 (- strand).fasta!
+    $fpath = preg_replace('([\s~\[\]\(\)])', '', $fpath);
 	$cleaned_path = "$fpath.cleaned"; # The cleaned copy which should already be there
 
 	# First we need a semi-private 'jobkey' for this job so only the
@@ -361,7 +366,7 @@ function annot_upload_form_submit($form, &$form_state)
 	$upload_new_name = "upload_$jobkey";  # can't use the jid because then after uninstall/reinstall
 	$upload_new_path = tripal_annot_build_file_path($upload_new_name);
 
-	system("cp $cleaned_path $upload_new_path");
+	system("cp '$cleaned_path' $upload_new_path");
 	system("chmod -w $upload_new_path"); # so can't accidentally delete during debugging
 	tripal_annot_update_field($jid,"ulname",$upload_new_name);
 
