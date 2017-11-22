@@ -321,7 +321,8 @@ while ( ($line = fgets($fh)) != FALSE)
 			$linkouts = array();
 			foreach ($gfs as $i => $gf)
 			{
-				$linkout1 = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\" title='View the phylotree for this family'>$gf</a>";
+				#$linkout1 = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\" title='View the phylotree for this family'>$gf</a>";
+				$linkout1 = "<a href=\"/chado_phylotree/legfed_v1_0.$gf\" title='View the phylotree for this family'>$gf</a>";
 				$linkout2 = "<a href=\"/annot/job/$jobkey?family=$gf\" target=\"_blank\" title='Rebuild family phylotree including your sequence'>$tool_icon_tag</a>";
 				$linkout = "<span style='white-space:nowrap'>$linkout1&nbsp;$linkout2</span>";
 				if ($i % 4 == 3)
