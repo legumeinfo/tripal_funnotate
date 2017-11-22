@@ -28,7 +28,7 @@ function annot_job_page($jobkey)
 			return "<p>Unable to create gene family tree since no lorax server was configured<p>";
 		}
 		$fID = $_GET["family"];
-		if (!preg_match('/^[0-9]+$/',$fID))
+		if (!preg_match('/^[A-Z0-9_]+$/',$fID))
 		{
 			return "<p>Invalid gene family!<p>";
 		}
