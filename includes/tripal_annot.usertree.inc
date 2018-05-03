@@ -60,7 +60,7 @@ END;
 	{
 		#$text .= "<span style='color:red'>Development in progress, functionality may be temporarily impaired</span><p>\n";
 		$tree_url = "$lorax_url/trees/$sftag/FastTree/tree.nwk";
-		$fname = "phytozome_10_2.$fID";
+		$fname = "legfed_v1_0.$fID";
 
 		curl_setopt($ch, CURLOPT_URL, $tree_url);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
