@@ -144,15 +144,14 @@ Annotation pipeline:
 1. <a  style="text-decoration:underline" href="http://estscan.sourceforge.net">ESTScan</a> if needed (to translate nucleotide uploads)
 2. <a  style="text-decoration:underline" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi">BLAST</a> alignment to reference gene databases (Soy, Medicago, Arabidopsis)
 3. (optional) <a  style="text-decoration:underline" href="http://www.ebi.ac.uk/interpro/search/sequence-search">InterProScan</a> (methods: TIGRFAM, ProDom, SMART,  SUPERFAMILY, PANTHER, Gene3D, PIRSF, Pfam, Coils) 
-4. Assignment of <a style="text-decoration:underline" href="http://www.legumeinfo.org/search/phylotree">phytozome gene family</a> (using <a  style="text-decoration:underline" href="http://hmmer.org/">HMMer</a>)
+4. Assignment of <a style="text-decoration:underline" href="http://www.legumeinfo.org/search/phylotree">gene family</a> (using <a  style="text-decoration:underline" href="http://hmmer.org/">HMMer</a>)
 5. Best-hit extraction by <a  style="text-decoration:underline" href="https://github.com/groupschoof/AHRD/blob/master/README.textile">AHRD</a> (Automated Human Readable Descriptions)
 
 Results include: Phytozome gene family, AHRD descriptor, best BLAST hits, GO and InterPro ID (the latter two
 only if InterProScan is run). 
 Complete output files for each analysis are also provided. 
 
-Note that the phytozome gene families which are searched are a subset of the phytozome v10.2 families. 
-These are the families displayed on LIS, i.e., those having at least one member which is an LIS species. 
+Note that the gene families which are searched are the families displayed on LIS, i.e., those having at least one member which is an LIS species. 
 </pre>
 END;
 
@@ -342,7 +341,7 @@ function tripal_annot_init()
 function dump_all_names()
 {
   $sql = <<<SQL
-  SELECT name  from chado.phylotree where name like 'phytozome_10_2.%' 
+  SELECT name  from chado.phylotree where name like 'legfed_v1_0.%' 
 SQL;
   $result = chado_query( $sql );
   $names = array();
