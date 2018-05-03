@@ -28,7 +28,7 @@ function annot_job_page($jobkey)
 			return "<p>Unable to create gene family tree since no lorax server was configured<p>";
 		}
 		$fID = $_GET["family"];
-		if (!preg_match('/^[0-9]+$/',$fID))
+		if (!preg_match('/^[A-z_0-9]+$/',$fID))
 		{
 			return "<p>Invalid gene family!<p>";
 		}
@@ -321,7 +321,8 @@ while ( ($line = fgets($fh)) != FALSE)
 			$linkouts = array();
 			foreach ($gfs as $i => $gf)
 			{
-				$linkout1 = "<a href=\"/chado_phylotree/phytozome_10_2.$gf\" title='View the phylotree for this family'>$gf</a>";
+                #FIXME: should either make the prefix configurable or else just mandate that the hmm file includes the fully namespaced identifiers; but this is no worse than what we had previously hard-coded with phytozome families
+				$linkout1 = "<a href=\"/chado_phylotree/legfed_v1_0.$gf\" title='View the phylotree for this family'>$gf</a>";
 				$linkout2 = "<a href=\"/annot/job/$jobkey?family=$gf\" target=\"_blank\" title='Rebuild family phylotree including your sequence'>$tool_icon_tag</a>";
 				$linkout = "<span style='white-space:nowrap'>$linkout1&nbsp;$linkout2</span>";
 				if ($i % 4 == 3)
